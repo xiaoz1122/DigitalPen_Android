@@ -20,18 +20,18 @@
 
 
 ## 配置AndroidManifest.xml ##
-1. 打开您项目的“AndroidManifest.xml”，在其中添加如下的权限：
+- 打开您项目的“AndroidManifest.xml”，在其中添加如下的权限：
 ```
 	<uses-permission android:name="android.permission.BLUETOOTH" />
 	<uses-permission android:name="android.permission.BLUETOOTH_ADMIN" />
 ```
 
-2. BLE蓝牙最低支持Android版本为4.3，需添加如下版本支持：
+- BLE蓝牙最低支持Android版本为4.3，需添加如下版本支持：
 ```
 	<uses-sdk android:minSdkVersion="18" android:targetSdkVersion="18" />
 ```
 
-3. 添加数码笔蓝牙服务
+- 添加数码笔蓝牙服务
 ```
 	<service android:name="com.smart.pen.core.services.SmartPenService" android:enabled="true">
 		<intent-filter android:priority="10000">  
@@ -53,28 +53,27 @@
 4. 通过监听接口complete(HashMap<String, DeviceObject> list)告知扫描已完成，并返回所有扫描到的设备集合；
 5. 执行SmartPenService服务里的stopScanDevice()可强制停止执行扫描。
 
-
-其他方法：
-
+其他方法：  
 **SmartPenService.scanDevice(OnScanDeviceListener listener,String prefix)**
-- listener:扫描监听接口
-- prefix:扫描设备的前缀，用于更改过蓝牙名称的OEM设备，默认为“null”全部显示。
+> 参数说明：
+> listener:扫描监听接口
+> prefix:扫描设备的前缀，用于更改过蓝牙名称的OEM设备，默认为“null”全部显示。
 
 
 ## 连接数码笔设备 ##
-**1. 获取需要连接设备的MAC地址**
+**1. 获取需要连接设备的MAC地址**  
 取到扫描返回的设备对象DeviceObject后，可通过对象的address属性获取到MAC地址。
 
-**2. 连接设备**
+**2. 连接设备**  
 拿到MAC地址后可调用SmartPenService服务里的connectDevice(OnConnectStateListener listener,String address)方法进行设备连接。
 
-**3.获取连接状态**
+**3.获取连接状态**  
 连接状态会通过OnConnectStateListener.stateChange(String address,ConnectState state)返回。
 
-**4.连接完成**
+**4.连接完成**  
 当返回值为PEN_INIT_COMPLETE时表示笔已连接成功并初始化完成，可以进行后续操作。
 
-## 获取笔坐标信息**
+## 获取笔坐标信息 ##
 连接成功后，可通过SmartPenService服务里的setOnPointChangeListener(OnPointChangeListener listener)方法，监听笔的坐标数据。
 OnPointChangeListener.change方法实时返回PointObject对象，公开属性有：
 
@@ -86,33 +85,33 @@ OnPointChangeListener.change方法实时返回PointObject对象，公开属性�
 
 
 #####PointObject对象公开方法：#####
-- 设置场景类型，目前支持A4、A5和自定义，本SDK默认选择为A5；
+- 设置场景类型，目前支持A4、A5和自定义，本SDK默认选择为A5；  
 ```	setSceneType(SceneType type) ```
 	
-- 自定义场景宽度和高度，设置后sceneType自动被切换为SceneType.CUSTOM，且笔迹只能在这个范围内被输出。
-```	setCustomScene(short width,short height,short offsetX,short offsetY) ```
+- 自定义场景宽度和高度，设置后sceneType自动被切换为SceneType.CUSTOM，且笔迹只能在这个范围内被输出。  
+```	setCustomScene(short width,short height,short offsetX,short offsetY) ```  
 > 参数说明：
 > width			纸张场景宽度  
 > height		纸张场景高度  
 > offsetX		自定义区域中心点离接收器X中心的偏移量  
 > offsetY		自定义区域顶部坐标与接收器Y起点的偏移量  
 
-- 获取当前场景的宽，单位px。
+- 获取当前场景的宽，单位px。  
 ```	getWidth() ```
 		
-- 获取当前场景的高，单位px。
+- 获取当前场景的高，单位px。  
 ```	getHeight() ```
 	
-- 笔相对于当前场景的X轴坐标，单位px；
+- 笔相对于当前场景的X轴坐标，单位px；  
 ```	getSceneX() ```
 
-- 笔坐标相对于showWidth等比缩放后的X轴坐标，单位px；	
+- 笔坐标相对于showWidth等比缩放后的X轴坐标，单位px；  	
 ```	getSceneX(int showWidth) ```
 	
-- 笔相对于当前场景的Y轴坐标，单位px；
+- 笔相对于当前场景的Y轴坐标，单位px；  
 ```	getSceneY() ```
 	
-- 笔坐标相对于showHeight等比缩放后的Y轴坐标，单位px；
+- 笔坐标相对于showHeight等比缩放后的Y轴坐标，单位px；  
 ```	getSceneY(int showHeight) ```
 	
 
@@ -131,7 +130,7 @@ OnPointChangeListener.change方法实时返回PointObject对象，公开属性�
 - OnFixedPointListener 固定坐标事件监听，用于确定当前是否已完成坐标确认。
 
 OnFixedPointListener会通过location(PointObject first, PointObject second,LocationState state)方法返回定位状态。
-> 参数说明：
+> 参数说明：  
 > first		定位的第一个点（左上角）
 > second	定位的第二个点（右下角）
 > state		定位状态
