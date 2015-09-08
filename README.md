@@ -1,5 +1,5 @@
 # DigitalPen For Android
-这是易方物联为旗下产品```数码笔```提供的Android开源项目，用于让开发者快速的进行开发。
+这是易方物联为旗下产品**数码笔**提供的Android开源项目，用于让开发者快速的进行开发。
 
 ## 目录说明 ##
 - <b>SmartPenCore：</b>数码笔SDK核心库。
@@ -50,6 +50,7 @@
 4. 通过监听接口complete(HashMap<String, DeviceObject> list)告知扫描已完成，并返回所有扫描到的设备集合；
 5. 执行SmartPenService服务里的stopScanDevice()可强制停止执行扫描。
 
+
 其他方法：
 ##### SmartPenService.scanDevice(OnScanDeviceListener listener,String prefix) #####
 - listener:扫描监听接口
@@ -77,6 +78,7 @@ OnPointChangeListener.change方法实时返回PointObject对象，公开属性�
 - isRoute：表示当前输出的坐标对象是否为笔迹，false表示当前笔为悬空状态；
 - isSw1：表示当前数码笔上的按键1是否被按下，false表示没有被按下；
 - battery：表示电量信息。当数码笔电量过低时，会间隔发送BatteryState.LOW信号。
+
 
 #####PointObject对象公开方法：#####
 - 设置场景类型，目前支持A4、A5和自定义，本SDK默认选择为A5；
