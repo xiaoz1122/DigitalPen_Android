@@ -17,15 +17,18 @@
 
 ## 配置AndroidManifest.xml ##
 1. 打开您项目的“AndroidManifest.xml”，在其中添加如下的权限：
+
 	<uses-permission android:name="android.permission.BLUETOOTH" />
 	<uses-permission android:name="android.permission.BLUETOOTH_ADMIN" />
 
 
 2. BLE蓝牙最低支持Android版本为4.3，需添加如下版本支持：
+
 	<uses-sdk android:minSdkVersion="18" android:targetSdkVersion="18" />
 
 
 3. 添加数码笔蓝牙服务
+
 	<service android:name="com.smart.pen.core.services.SmartPenService" android:enabled="true">
 		<intent-filter android:priority="10000">  
 		<action android:name="android.bluetooth.adapter.action.STATE_CHANGED"/>  
