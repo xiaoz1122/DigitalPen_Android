@@ -55,8 +55,8 @@
 
 其他方法：  
 **SmartPenService.scanDevice(OnScanDeviceListener listener,String prefix)**
-> 参数说明：
-> listener:扫描监听接口
+> 参数说明：  
+> listener:扫描监听接口  
 > prefix:扫描设备的前缀，用于更改过蓝牙名称的OEM设备，默认为“null”全部显示。
 
 
@@ -75,8 +75,9 @@
 
 ## 获取笔坐标信息 ##
 连接成功后，可通过SmartPenService服务里的setOnPointChangeListener(OnPointChangeListener listener)方法，监听笔的坐标数据。
-OnPointChangeListener.change方法实时返回PointObject对象，公开属性有：
+OnPointChangeListener.change方法实时返回PointObject对象。
 
+#####PointObject对象公开属性：#####
 - originalX：笔相对于接收器的实际X轴坐标，单位px；
 - originalY：笔相对于接收器的实际Y轴坐标，单位px；
 - isRoute：表示当前输出的坐标对象是否为笔迹，false表示当前笔为悬空状态；
@@ -90,7 +91,7 @@ OnPointChangeListener.change方法实时返回PointObject对象，公开属性�
 	
 - 自定义场景宽度和高度，设置后sceneType自动被切换为SceneType.CUSTOM，且笔迹只能在这个范围内被输出。  
 ```	setCustomScene(short width,short height,short offsetX,short offsetY) ```  
-> 参数说明：
+> 参数说明：  
 > width			纸张场景宽度  
 > height		纸张场景高度  
 > offsetX		自定义区域中心点离接收器X中心的偏移量  
@@ -115,6 +116,7 @@ OnPointChangeListener.change方法实时返回PointObject对象，公开属性�
 ```	getSceneY(int showHeight) ```
 	
 
+
 提示：
 > 当isRoute由false变为true时，可视为Down；  
 > 当isRoute由true变为false时，可视为Up；  
@@ -131,8 +133,8 @@ OnPointChangeListener.change方法实时返回PointObject对象，公开属性�
 
 OnFixedPointListener会通过location(PointObject first, PointObject second,LocationState state)方法返回定位状态。
 > 参数说明：  
-> first		定位的第一个点（左上角）
-> second	定位的第二个点（右下角）
+> first		定位的第一个点（左上角）  
+> second	定位的第二个点（右下角）  
 > state		定位状态
 
 我们只需要根据state返回的定位状态，做出相应的动作即可：
