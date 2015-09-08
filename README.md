@@ -17,26 +17,20 @@
 
 ## 配置AndroidManifest.xml ##
 1. 打开您项目的“AndroidManifest.xml”，在其中添加如下的权限：
-``` 
-<uses-permission android:name="android.permission.BLUETOOTH" />
-<uses-permission android:name="android.permission.BLUETOOTH_ADMIN" />
-```
+	<uses-permission android:name="android.permission.BLUETOOTH" />
+	<uses-permission android:name="android.permission.BLUETOOTH_ADMIN" />
 
 
 2. BLE蓝牙最低支持Android版本为4.3，需添加如下版本支持：
-```
-<uses-sdk android:minSdkVersion="18" android:targetSdkVersion="18" />
-```
+	<uses-sdk android:minSdkVersion="18" android:targetSdkVersion="18" />
 
 
 3. 添加数码笔蓝牙服务
-```
-<service android:name="com.smart.pen.core.services.SmartPenService" android:enabled="true">
-  <intent-filter android:priority="10000">  
-    <action android:name="android.bluetooth.adapter.action.STATE_CHANGED"/>  
-  </intent-filter>
-</service>
-```
+	<service android:name="com.smart.pen.core.services.SmartPenService" android:enabled="true">
+		<intent-filter android:priority="10000">  
+		<action android:name="android.bluetooth.adapter.action.STATE_CHANGED"/>  
+	  </intent-filter>
+	</service>
 
 ## 启动并绑定数码笔服务 ##
 参照SmartPenSample项目MainActivity类onCreate函数里的SmartPenApplication.getInstance().bindPenService();
@@ -82,10 +76,10 @@ OnPointChangeListener.change方法实时返回PointObject对象，公开属性�
 
 #####PointObject对象公开方法：#####
 - 设置场景类型，目前支持A4、A5和自定义，本SDK默认选择为A5；
-``` setSceneType(SceneType type) ```
+	setSceneType(SceneType type)
 	
 - 自定义场景宽度和高度，设置后sceneType自动被切换为SceneType.CUSTOM，且笔迹只能在这个范围内被输出。
-``` setCustomScene(short width,short height,short offsetX,short offsetY) ```
+	setCustomScene(short width,short height,short offsetX,short offsetY)
 
 	参数说明：
 	width		纸张场景宽度
@@ -94,27 +88,29 @@ OnPointChangeListener.change方法实时返回PointObject对象，公开属性�
 	offsetY		自定义区域顶部坐标与接收器Y起点的偏移量
 
 - 获取当前场景的宽，单位px。
-``` getWidth() ```
+	getWidth()
 		
 - 获取当前场景的高，单位px。
-``` getHeight() ```
+	getHeight()
 	
 - 笔相对于当前场景的X轴坐标，单位px；
-``` getSceneX() ```
+	getSceneX()
 
 - 笔坐标相对于showWidth等比缩放后的X轴坐标，单位px；	
-``` getSceneX(int showWidth) ```
+	getSceneX(int showWidth)
 	
 - 笔相对于当前场景的Y轴坐标，单位px；
-``` getSceneY() ```
+	getSceneY()
 	
 - 笔坐标相对于showHeight等比缩放后的Y轴坐标，单位px；
-``` getSceneY(int showHeight) ```
+	getSceneY(int showHeight)
 	
 
 提示：
 > 当isRoute由false变为true时，可视为Down；
+
 > 当isRoute由true变为false时，可视为Up；
+
 > 当isRoute持续为true时，可视为Move。
 
 ## 自定义画布 ##
