@@ -1,5 +1,8 @@
 package com.smart.pen.core.model;
 
+import org.json.JSONException;
+import org.json.JSONObject;
+
 import com.smart.pen.core.symbol.BatteryState;
 import com.smart.pen.core.symbol.SceneType;
 
@@ -48,6 +51,22 @@ public class PointObject {
 	 * 2：良好
 	 */
 	public BatteryState battery = BatteryState.NOTHING;
+	
+	public PointObject(){
+	}
+		
+	public PointObject(String jsonValue){
+		if(jsonValue != null){
+            if(jsonValue.startsWith("{") && jsonValue.endsWith("}")){
+                try {
+                    JSONObject jsonObject = new JSONObject(jsonValue);
+                    copy(jsonObject);
+                } catch (JSONException e) {
+                    e.printStackTrace();
+                }
+            }
+        }
+	}
 	
 	/**
 	 * 设置场景类型
@@ -188,5 +207,47 @@ public class PointObject {
 	public String toString(){
 		return "isRoute:"+ isRoute +",isSw1:"+ isSw1 +",battery:"+ battery +"\nx:"+ originalX +",y:"+originalY
 				+"\nsceneType:"+sceneType+"  sceneX:"+ getSceneX() +",sceneY:"+getSceneY();
+	}
+	
+	/**
+	 * copy json格式数据
+	 * @param obj
+	 * @throws JSONException
+	 */
+	public void copy(JSONObject obj) throws JSONException {
+        if(obj != null){
+        	sceneType = SceneType.toSceneType(obj.getInt("sceneType"));
+        	width = (short)obj.getInt("width");
+        	height = (short)obj.getInt("height");
+        	offsetX = (short)obj.getInt("offsetX");
+        	offsetY = (short)obj.getInt("offsetY");
+        	
+        	originalX = (short)obj.getInt("originalX");
+        	originalY = (short)obj.getInt("originalY");
+        	isRoute = obj.getInt("isRoute") > 0?true:false;
+        	isSw1 = obj.getInt("isSw1") > 0?true:false;
+        	battery = BatteryState.toBatteryState(obj.getInt("battery"));
+        }
+    }
+	
+	/**
+	 * 输出json格式数据
+	 * **/
+	public String toJsonString(){
+		StringBuilder result = new StringBuilder();
+		result.append("{");
+		result.append("\"sceneType\":"+ Integer.toString(sceneType.getValue()) +",");
+		result.append("\"width\":"+ Integer.toString(width) +",");
+		result.append("\"height\":"+ Integer.toString(height) +",");
+		result.append("\"offsetX\":"+ Integer.toString(offsetX) +",");
+		result.append("\"offsetY\":"+ Integer.toString(offsetY) +",");
+
+		result.append("\"originalX\":"+ Integer.toString(originalX) +",");
+		result.append("\"originalY\":"+ Integer.toString(originalY) +",");
+		result.append("\"isRoute\":"+ (isRoute?"1":"0") +",");
+		result.append("\"isSw1\":"+ (isSw1?"1":"0") +",");
+		result.append("\"battery\":"+ Integer.toString(battery.getValue()));
+		result.append("}");
+		return result.toString();
 	}
 }

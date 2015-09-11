@@ -117,11 +117,11 @@ public class BlePenUtil {
 				list.add(item);
 				
 				//打印笔数据
-				String value = "";
-				for(int n = 0;n < PEN_DATA_VALID_LENGTH;n++){
-					value += toHex(penData[i+n])+" ";
-				}
-				Log.v(TAG, "PenData:"+value);
+//				String value = "";
+//				for(int n = 0;n < PEN_DATA_VALID_LENGTH;n++){
+//					value += toHex(penData[i+n])+" ";
+//				}
+//				Log.v(TAG, "PenData:"+value);
 			}
 		}
 	}

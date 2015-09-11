@@ -62,7 +62,6 @@ public class SmartPenService extends Service{
 	private static final UUID NOTIFICATION_DESCRIPTOR_UUID = UUID.fromString("00002902-0000-1000-8000-00805f9b34fb");
 	private static final UUID PEN_DATA_UUID = UUID.fromString("0000ffc1-0000-1000-8000-00805f9b34fb");
 	
-	
 	private boolean isScanning;
 	private int mScanTime = 10000;
 	private int mReadyNumber = INIT_READ_DATA_NUM;
@@ -726,6 +725,11 @@ public class SmartPenService extends Service{
 					Message msg = Message.obtain(mHandler, Keys.MSG_OUT_POINT);
 					msg.obj = item;
 					msg.sendToTarget();
+					
+					//发送笔迹JSON格式广播包
+					Intent intent = new Intent(Keys.ACTION_SERVICE_SEND_POINT);
+					intent.putExtra(Keys.KEY_PEN_POINT, item.toJsonString());
+					sendBroadcast(intent);
 					
 					//Log.v(TAG, "out point:"+item.toString());
 					addFixedPoint(item);

@@ -5,8 +5,11 @@ import android.app.Activity;
 import android.app.AlertDialog;
 import android.app.ProgressDialog;
 import android.app.AlertDialog.Builder;
+import android.content.BroadcastReceiver;
+import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.content.DialogInterface.OnCancelListener;
 import android.graphics.Rect;
 import android.os.Bundle;
@@ -31,6 +34,7 @@ import com.smart.pen.core.model.PointObject;
 import com.smart.pen.core.services.SmartPenService;
 import com.smart.pen.core.symbol.BatteryState;
 import com.smart.pen.core.symbol.ConnectState;
+import com.smart.pen.core.symbol.Keys;
 import com.smart.pen.core.symbol.SceneType;
 import com.smart.pen.core.utils.SystemUtil;
 
@@ -45,6 +49,8 @@ public class PenInfo extends Activity{
 	public static final String TAG = PenInfo.class.getSimpleName();
 	public static final int REQUEST_SETTING_SIZE = 1000;
 	
+	/**笔服务广播处理**/
+	private PenServiceReceiver mPenServiceReceiver;
 	private SmartPenService mSmartPenService;
 	private ProgressDialog mProgressDialog;
 	private int mShowType = 0;
@@ -182,6 +188,24 @@ public class PenInfo extends Activity{
     		}
     	}
 	}
+    
+    @Override
+	public void onResume() {
+		super.onResume();
+		
+		//注册笔服务通过广播方式发送的笔迹坐标信息
+		//示例仅用作演示有这个功能，没有特殊需求可删除以下代码
+		mPenServiceReceiver = new PenServiceReceiver();
+		IntentFilter intentFilter = new IntentFilter();
+		intentFilter.addAction(Keys.ACTION_SERVICE_SEND_POINT);
+		registerReceiver(mPenServiceReceiver, intentFilter);
+	}
+	
+	@Override
+	public void onPause(){
+		unregisterReceiver(mPenServiceReceiver);
+		super.onPause();
+	}
 	
 	@Override
 	protected void onDestroy() {
@@ -207,8 +231,8 @@ public class PenInfo extends Activity{
 			mXYFrame.setVisibility(View.GONE);
 			mLineFrame.setVisibility(View.VISIBLE);
 		}
-		//设置笔坐标监听
 		SmartPenService service = SmartPenApplication.getInstance().getPenService();
+		//设置笔坐标监听
 		service.setOnPointChangeListener(onPointChangeListener);
 		
 		//状态栏+ActionBar+菜单按钮高
@@ -335,6 +359,29 @@ public class PenInfo extends Activity{
 				alertError("The pen service connection failure.");
 			}else{
 				mProgressDialog = ProgressDialog.show(PenInfo.this, "", getString(R.string.connecting), true);
+			}
+		}
+	}
+	
+	//处理笔服务通过广播方式发送的笔迹坐标信息
+	//示例仅用作演示有这个功能，没有特殊需求可删除以下代码
+	private class PenServiceReceiver extends BroadcastReceiver {
+		@Override
+		public void onReceive(Context context, Intent intent) {
+			String action = intent.getAction();
+			if (action.equals(Keys.ACTION_SERVICE_SEND_POINT)){
+				//广播的形式接收笔迹信息
+				String pointJson = intent.getStringExtra(Keys.KEY_PEN_POINT);
+				if(pointJson != null && !pointJson.isEmpty()){
+					Log.v(TAG, "pointJson:"+pointJson);
+					
+					//更新笔坐标信息
+					//如果注册了service.setOnPointChangeListener监听，那么请注释掉下面的代码，否则信息会冲突
+					//反之如果需要使用Receiver，那么就不要使用setOnPointChangeListener
+					//PointObject item = new PointObject(pointJson);
+					//onPointChangeListener.change(item);
+				}
+				return;
 			}
 		}
 	}

@@ -73,11 +73,20 @@
 **4.连接完成**  
 当返回值为PEN_INIT_COMPLETE时表示笔已连接成功并初始化完成，可以进行后续操作。
 
-## 获取笔坐标信息 ##
+
+## Listener方式获取笔坐标信息 ##
 连接成功后，可通过SmartPenService服务里的setOnPointChangeListener(OnPointChangeListener listener)方法，监听笔的坐标数据。
 OnPointChangeListener.change方法实时返回PointObject对象。
 
-#####PointObject对象公开属性：#####
+
+## Receiver方式获取笔坐标信息 ##
+连接成功后，SmartPenService服务会发送com.smart.pen.core.services.Send_Point广播信息，此时不需要绑定服务就能接收到笔的坐标数据，便于跨进程开发。  
+广播信息包含的是json格式数据，开发者可自行解析或使用new PointObject(String jsonValue)方式解析数据。  
+
+详细操作请参考SmartPenSample项目里的PenInfo类。  
+
+
+##PointObject对象公开属性：##
 - originalX：笔相对于接收器的实际X轴坐标，单位px；
 - originalY：笔相对于接收器的实际Y轴坐标，单位px；
 - isRoute：表示当前输出的坐标对象是否为笔迹，false表示当前笔为悬空状态；
@@ -85,8 +94,8 @@ OnPointChangeListener.change方法实时返回PointObject对象。
 - battery：表示电量信息。当数码笔电量过低时，会间隔发送BatteryState.LOW信号。
 
 
-#####PointObject对象公开方法：#####
-- 设置场景类型，目前支持A4、A5和自定义，本SDK默认选择为A5；  
+##PointObject对象公开方法：##
+- 设置纸张场景类型，目前支持A4、A4(横向)、A5、A5(横向)和自定义，设置后会输出响应尺寸的坐标；  
 ```	setSceneType(SceneType type) ```
 	
 - 自定义场景宽度和高度，设置后sceneType自动被切换为SceneType.CUSTOM，且笔迹只能在这个范围内被输出。  
@@ -116,11 +125,11 @@ OnPointChangeListener.change方法实时返回PointObject对象。
 ```	getSceneY(int showHeight) ```
 	
 
-
 提示：
 > 当isRoute由false变为true时，可视为Down；  
 > 当isRoute由true变为false时，可视为Up；  
 > 当isRoute持续为true时，可视为Move。  
+
 
 ## 自定义画布 ##
 自定义画布是指用户在非标准尺寸（非A4、A5等未知尺寸）的纸张上书写时，使用数码笔定位纸张的左上角和右下角坐标，SDK就能自动适配当前画布输出按照当前屏幕尺寸转换后的坐标。

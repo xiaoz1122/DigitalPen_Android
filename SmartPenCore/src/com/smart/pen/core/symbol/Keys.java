@@ -44,6 +44,12 @@ public class Keys {
 	/**后台ble服务key**/
 	public static final String APP_PEN_SERVICE_NAME = "com.smart.pen.core.services.SmartPenService";
 
+	/**后台发送笔迹广播包**/
+	public final static String ACTION_SERVICE_SEND_POINT = "com.smart.pen.core.services.Send_Point";
+	
+	/**笔坐标信息key**/
+	public static final String KEY_PEN_POINT = "pen_point";
+
 	/**默认场景**/
 	public static final String DEFAULT_SETTING_KEY = "SMART_PEN_DEFAULT_SETTING_KEY";
 	
