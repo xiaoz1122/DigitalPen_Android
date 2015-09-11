@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import android.bluetooth.BluetoothGattCharacteristic;
+import android.util.Log;
 
 import com.smart.pen.core.model.DeviceObject;
 import com.smart.pen.core.model.PointObject;
@@ -94,7 +95,6 @@ public class BlePenUtil {
 	 * 填充点坐标集合
 	 * @param list
 	 * @param penData	笔数据
-	 * @param index
 	 */
 	private static void fillPointList(List<PointObject> list,byte[] penData){
 		byte[] byX = new byte[2];
@@ -117,11 +117,11 @@ public class BlePenUtil {
 				list.add(item);
 				
 				//打印笔数据
-//				String value = "";
-//				for(int n = 0;n < PEN_DATA_VALID_LENGTH;n++){
-//					value += toHex(penData[i+n])+" ";
-//				}
-//				Log.v(TAG, "PenData:"+value);
+				String value = "";
+				for(int n = 0;n < PEN_DATA_VALID_LENGTH;n++){
+					value += toHex(penData[i+n])+" ";
+				}
+				Log.v(TAG, "PenData:"+value);
 			}
 		}
 	}

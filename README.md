@@ -55,7 +55,7 @@
 
 其他方法：  
 **SmartPenService.scanDevice(OnScanDeviceListener listener,String prefix)**
-> 参数说明：  
+> 参数说明  
 > listener:扫描监听接口  
 > prefix:扫描设备的前缀，用于更改过蓝牙名称的OEM设备，默认为“null”全部显示。
 
@@ -91,7 +91,7 @@ OnPointChangeListener.change方法实时返回PointObject对象。
 	
 - 自定义场景宽度和高度，设置后sceneType自动被切换为SceneType.CUSTOM，且笔迹只能在这个范围内被输出。  
 ```	setCustomScene(short width,short height,short offsetX,short offsetY) ```  
-> 参数说明：  
+> 参数说明  
 > width			纸张场景宽度  
 > height		纸张场景高度  
 > offsetX		自定义区域中心点离接收器X中心的偏移量  
@@ -132,7 +132,7 @@ OnPointChangeListener.change方法实时返回PointObject对象。
 - OnFixedPointListener 固定坐标事件监听，用于确定当前是否已完成坐标确认。
 
 OnFixedPointListener会通过location(PointObject first, PointObject second,LocationState state)方法返回定位状态。
-> 参数说明：  
+> 参数说明  
 > first		定位的第一个点（左上角）  
 > second	定位的第二个点（右下角）  
 > state		定位状态

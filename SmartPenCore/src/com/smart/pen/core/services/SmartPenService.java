@@ -760,9 +760,9 @@ public class SmartPenService extends Service{
 		@Override
 		public void onLeScan(BluetoothDevice device, int rssi, byte[] scanRecord) {
 			//23:680T 广播包
+			//26:PenXXXXXXXXXXXX 广播包
 			//27:DigitalPen-xxxxx 广播包
-			//29:PenXXXXXXXXXXXX 广播包
-			int[] record = {23,27,29};
+			int[] record = {23,26,27};
 			int startIndex = 0;
 			
 			//开始判断是否是数码笔广播包
