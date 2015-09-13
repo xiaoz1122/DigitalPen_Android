@@ -4,7 +4,6 @@ import java.util.ArrayList;
 import java.util.List;
 
 import android.bluetooth.BluetoothGattCharacteristic;
-import android.util.Log;
 
 import com.smart.pen.core.model.DeviceObject;
 import com.smart.pen.core.model.PointObject;

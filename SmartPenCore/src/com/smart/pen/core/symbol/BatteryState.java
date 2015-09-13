@@ -31,7 +31,7 @@ public enum BatteryState {
     }
     
     /**
-     * int转换为SceneType，如果溢出那么输出NOTHING
+     * int转换为ConnectState，如果溢出那么输出NOTHING
      * @param value 需要转换的int值
      * @return
      */

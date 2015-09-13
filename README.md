@@ -40,13 +40,27 @@
 	</service>
 ```
 
-## 启动并绑定数码笔服务 ##
-参照SmartPenSample项目MainActivity类onCreate函数里的SmartPenApplication.getInstance().bindPenService();
+
+## 调用SDK方式 ##
+SDK主要通过SmartPenService服务执行各种操作，可通过以下两种方式与服务进行交互：  
+
+1. BindService绑定服务获得SmartPenService对象。
+2. Receiver发送广播与服务交互。
+
+
+#### BindService方式 ####
+参照SmartPenSample项目MainActivity类onCreate函数里的SmartPenApplication.getInstance().bindPenService();  
+
+
+#### Receiver方式 ####
+1. 确定服务已开启，如果没有那么先启动服务；
+2. 发送广播com.smart.pen.core.symbol.Keys.ACTION_SERVICE_SETTING_SEND_RECEIVER，通知SmartPenService开启广播模式。
 
 
 ## 扫描数码笔设备 ##
 首先需要确认手机蓝牙是否已打开，然后执行以下步骤：
 
+#### BindService方式 ####
 1. 定义com.smart.pen.core.common.Listeners.OnScanDeviceListener监听接口；
 2. 执行SmartPenService服务里的scanDevice(onScanDeviceListener)函数；
 3. 通过监听接口find(DeviceObject device)返回最新扫描到的设备；
@@ -57,10 +71,16 @@
 **SmartPenService.scanDevice(OnScanDeviceListener listener,String prefix)**
 > 参数说明  
 > listener:扫描监听接口  
-> prefix:扫描设备的前缀，用于更改过蓝牙名称的OEM设备，默认为“null”全部显示。
+> prefix:扫描设备的前缀，用于更改过蓝牙名称的OEM设备，默认为“null”全部显示。   
+
+#### Receiver方式 ####
+1. **开始扫描：**发送广播com.smart.pen.core.symbol.Keys.ACTION_SERVICE_BLE_SCAN;
+2. **停止扫描：**发送广播com.smart.pen.core.symbol.Keys.ACTION_SERVICE_BLE_SCAN，附带参数Keys.KEY_VALUE = false;
+3. **获得扫描到的设备：**接收广播com.smart.pen.core.symbol.Keys.ACTION_SERVICE_BLE_DISCOVERY_DEVICE，获得Keys.KEY_DEVICE_ADDRESS设备地址和Keys.KEY_DEVICE_NAME设备名字;
 
 
 ## 连接数码笔设备 ##
+#### BindService方式 ####
 **1. 获取需要连接设备的MAC地址**  
 取到扫描返回的设备对象DeviceObject后，可通过对象的address属性获取到MAC地址。
 
@@ -71,19 +91,37 @@
 连接状态会通过OnConnectStateListener.stateChange(String address,ConnectState state)返回。
 
 **4.连接完成**  
-当返回值为PEN_INIT_COMPLETE时表示笔已连接成功并初始化完成，可以进行后续操作。
+当ConnectState返回值为PEN_INIT_COMPLETE时表示笔已连接成功并初始化完成，可以进行后续操作。  
+
+#### Receiver方式 ####
+1. 拿到要连接设备的MAC地址；
+2. 发送广播com.smart.pen.core.symbol.Keys.ACTION_SERVICE_BLE_CONNECT,附带参数Keys.KEY_DEVICE_ADDRESS = “设备MAC地址”。
+3. 接收广播com.smart.pen.core.symbol.ACTION_SERVICE_BLE_CONNECT_STATE  获得Keys.KEY_CONNECT_STATE int数据类型，可通过ConnectState.toConnectState(int value)将值转换为连接状态。
+4. 当ConnectState返回值为PEN_INIT_COMPLETE时表示笔已连接成功并初始化完成，可以进行后续操作。
 
 
-## Listener方式获取笔坐标信息 ##
+## 获取笔坐标信息 ##
+#### BindService方式 ####
 连接成功后，可通过SmartPenService服务里的setOnPointChangeListener(OnPointChangeListener listener)方法，监听笔的坐标数据。
 OnPointChangeListener.change方法实时返回PointObject对象。
 
-
-## Receiver方式获取笔坐标信息 ##
-连接成功后，SmartPenService服务会发送com.smart.pen.core.services.Send_Point广播信息，此时不需要绑定服务就能接收到笔的坐标数据，便于跨进程开发。  
-广播信息包含的是json格式数据，开发者可自行解析或使用new PointObject(String jsonValue)方式解析数据。  
+#### Receiver方式 ####
+接收广播com.smart.pen.core.symbol.Keys.ACTION_SERVICE_SEND_POINT,获得参数Keys.KEY_PEN_POINT，String数据类型。  
+接收到的数据是json格式数据，开发者可自行解析或使用new PointObject(String jsonValue)方式解析数据。  
 
 详细操作请参考SmartPenSample项目里的PenInfo类。  
+
+
+## 设置纸张尺寸 ##
+SmartPenService支持设置A4、A4(横向)、A5和A5(横向)固定纸张尺寸，设置完成后，PointObject对象会返回与纸张相对应的坐标。  
+
+#### BindService方式 ####
+调用方法SmartPenService.setSceneType(SceneType value);
+
+#### Receiver方式 ####
+发送广播com.smart.pen.core.symbol.Keys.ACTION_SERVICE_SETTING_SCENE_TYPE,附带参数Keys.DEFAULT_SCENE_KEY。请使用SceneType.getValue()转换为int值传送。
+
+详细操作请参考SmartPenSample项目里的PenInfo类。
 
 
 ##PointObject对象公开属性：##

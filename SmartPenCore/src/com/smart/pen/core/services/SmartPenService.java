@@ -5,6 +5,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.UUID;
 
+import android.annotation.SuppressLint;
 import android.app.Service;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
@@ -14,8 +15,10 @@ import android.bluetooth.BluetoothGattCharacteristic;
 import android.bluetooth.BluetoothGattDescriptor;
 import android.bluetooth.BluetoothGattService;
 import android.bluetooth.BluetoothProfile;
+import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.content.SharedPreferences;
 import android.os.Binder;
 import android.os.Handler;
@@ -62,6 +65,7 @@ public class SmartPenService extends Service{
 	private static final UUID NOTIFICATION_DESCRIPTOR_UUID = UUID.fromString("00002902-0000-1000-8000-00805f9b34fb");
 	private static final UUID PEN_DATA_UUID = UUID.fromString("0000ffc1-0000-1000-8000-00805f9b34fb");
 	
+	private boolean isBroadcast;
 	private boolean isScanning;
 	private int mScanTime = 10000;
 	private int mReadyNumber = INIT_READ_DATA_NUM;
@@ -82,6 +86,9 @@ public class SmartPenService extends Service{
 	/**场景坐标对象**/
 	private PointObject mScenePointObject = new PointObject(); 
 	
+
+	private PenServiceReceiver mPenServiceReceiver;
+	
 	private BluetoothAdapter mBluetoothAdapter;
 	private BluetoothDevice mBluetoothDevice;
 	private BluetoothGatt mBluetoothGatt;
@@ -97,6 +104,26 @@ public class SmartPenService extends Service{
 	private HashMap<String,DeviceObject> mBufferDevices = new HashMap<String,DeviceObject>();
 	private ScanDeviceCallback mScanDeviceCallback = new ScanDeviceCallback();
 	private final IBinder mBinder = new LocalBinder();
+	
+	@Override
+	public void onCreate() {
+		super.onCreate();
+
+		mPenServiceReceiver = new PenServiceReceiver();
+		IntentFilter intentFilter = new IntentFilter();
+		intentFilter.addAction(Keys.ACTION_SERVICE_SETTING_SEND_RECEIVER);
+		intentFilter.addAction(Keys.ACTION_SERVICE_SETTING_SCENE_TYPE);
+		intentFilter.addAction(Keys.ACTION_SERVICE_BLE_SCAN);
+		intentFilter.addAction(Keys.ACTION_SERVICE_BLE_CONNECT);
+		intentFilter.addAction(Keys.ACTION_SERVICE_BLE_DISCONNECT);
+		registerReceiver(mPenServiceReceiver, intentFilter);
+	}
+	
+	@Override
+	public void onDestroy() {
+		unregisterReceiver(mPenServiceReceiver);
+		super.onDestroy();
+	}
 
 	@Override
 	public IBinder onBind(Intent intent) {
@@ -130,6 +157,14 @@ public class SmartPenService extends Service{
 		if(isBluetoothAdapterNormal())
 			return mBluetoothAdapter.isEnabled();
 		return false;
+	}
+	
+	/**
+	 * 设置是否开启广播，默认为false。如果需要通过广播的方式与Service交互，那么请设置为true。
+	 * @param value
+	 */
+	public void setBroadcastEnabled(boolean value){
+		this.isBroadcast = value;
 	}
 	
 	/**
@@ -279,7 +314,7 @@ public class SmartPenService extends Service{
 	public boolean scanDevice(OnScanDeviceListener listener,String prefix){
 		boolean flag = isBluetoothAdapterNormal();
 		if(flag){
-			if(isScanning)mBluetoothAdapter.stopLeScan(mScanDeviceCallback);
+			stopScanDevice();
 			
 			//清除扫描缓存
 			this.mBufferDevices.clear();
@@ -537,6 +572,48 @@ public class SmartPenService extends Service{
 		msg.sendToTarget();
 	}
 	
+	/**发送连接状态**/
+	public void sendConnectState(String address,ConnectState state){
+		if(onConnectStateListener != null)
+			onConnectStateListener.stateChange(address,state);
+		
+		if(isBroadcast){
+			Intent intent = new Intent(Keys.ACTION_SERVICE_BLE_CONNECT_STATE);
+			intent.putExtra(Keys.KEY_DEVICE_ADDRESS, address);
+			intent.putExtra(Keys.KEY_CONNECT_STATE, state.getValue());
+			sendBroadcast(intent);
+		}
+	}
+	
+	/**发送搜索到的设备**/
+	public void sendDiscoveryDevice(DeviceObject deviceObject){
+		
+		if(onScanDeviceListener != null)
+			onScanDeviceListener.find(deviceObject);
+		
+		if(isBroadcast){
+			//发送笔迹JSON格式广播包
+			Intent intent = new Intent(Keys.ACTION_SERVICE_BLE_DISCOVERY_DEVICE);
+			intent.putExtra(Keys.KEY_DEVICE_ADDRESS, deviceObject.address);
+			intent.putExtra(Keys.KEY_DEVICE_NAME, deviceObject.name);
+			sendBroadcast(intent);
+		}
+	}
+	
+	/**发送笔信息**/
+	private void sendPointInfo(PointObject point){
+
+		if(onPointChangeListener != null)
+			onPointChangeListener.change(point);
+		
+		if(isBroadcast){
+			//发送笔迹JSON格式广播包
+			Intent intent = new Intent(Keys.ACTION_SERVICE_SEND_POINT);
+			intent.putExtra(Keys.KEY_PEN_POINT, point.toJsonString());
+			sendBroadcast(intent);
+		}
+	}
+	
 	public class LocalBinder extends Binder {
 		/**获取服务对象**/
 		public SmartPenService getService() {
@@ -545,15 +622,14 @@ public class SmartPenService extends Service{
 	}
 	
 
+	@SuppressLint("HandlerLeak")
 	private Handler mHandler = new Handler(){
 		@Override
 		public void handleMessage(Message msg) {
 			switch (msg.what) {
 			case Keys.MSG_PEN_READY:
 				String address = (String)msg.obj;
-				
-				if(onConnectStateListener != null)
-					onConnectStateListener.stateChange(address,ConnectState.PEN_READY);
+				sendConnectState(address,ConnectState.PEN_READY);
 				
 				//保存连接设备
 				saveLastDevice(address);
@@ -565,40 +641,32 @@ public class SmartPenService extends Service{
 				startInitPenData();
 				break;
 			case Keys.MSG_PEN_INIT_COMPLETE:
-				if(onConnectStateListener != null)
-					onConnectStateListener.stateChange((String)msg.obj,ConnectState.PEN_INIT_COMPLETE);
+				sendConnectState((String)msg.obj,ConnectState.PEN_INIT_COMPLETE);
 				break;
 			case Keys.MSG_DISCOVERY_DEVICE:
-				//返回发现的新设备
-				if(onScanDeviceListener != null)
-					onScanDeviceListener.find(mBufferDevices.get((String)msg.obj));
+				//发送发现的新设备
+				sendDiscoveryDevice(mBufferDevices.get((String)msg.obj));
 				break;
 			case Keys.MSG_DISCOVERY_END:
 				stopScanDevice();
 				break;
 			case Keys.MSG_CONNECTED:
-				if(onConnectStateListener != null)
-					onConnectStateListener.stateChange((String)msg.obj,ConnectState.CONNECTED);
+				sendConnectState((String)msg.obj,ConnectState.CONNECTED);
 				break;
 			case Keys.MSG_DISCONNECTED:
-				if(onConnectStateListener != null)
-					onConnectStateListener.stateChange((String)msg.obj,ConnectState.DISCONNECTED);
+				sendConnectState((String)msg.obj,ConnectState.DISCONNECTED);
 				break;
 			case Keys.MSG_CONNECT_FAIL:
-				if(onConnectStateListener != null)
-					onConnectStateListener.stateChange((String)msg.obj,ConnectState.CONNECT_FAIL);
+				sendConnectState((String)msg.obj,ConnectState.CONNECT_FAIL);
 				break;
 			case Keys.MSG_SERVICES_READY:
-				if(onConnectStateListener != null)
-					onConnectStateListener.stateChange((String)msg.obj,ConnectState.SERVICES_READY);
+				sendConnectState((String)msg.obj,ConnectState.SERVICES_READY);
 				break;
 			case Keys.MSG_SERVICES_FAIL:
-				if(onConnectStateListener != null)
-					onConnectStateListener.stateChange((String)msg.obj,ConnectState.SERVICES_FAIL);
+				sendConnectState((String)msg.obj,ConnectState.SERVICES_FAIL);
 				break;
 			case Keys.MSG_OUT_POINT:
-				if(onPointChangeListener != null)
-					onPointChangeListener.change((PointObject)msg.obj);
+				sendPointInfo((PointObject)msg.obj);
 				break;
 			case Keys.MSG_OUT_FIXED_INFO:
 				if(onFixedPointListener != null)
@@ -610,6 +678,42 @@ public class SmartPenService extends Service{
 			}
 		}
 	};
+	
+	private class PenServiceReceiver extends BroadcastReceiver {
+		@Override
+		public void onReceive(Context context, Intent intent) {
+			String action = intent.getAction();
+			if (action.equals(Keys.ACTION_SERVICE_BLE_SCAN)){
+				boolean isStart = intent.getBooleanExtra(Keys.KEY_VALUE, true);
+				if(isStart){
+					//扫描设备
+					scanDevice(null);
+				}else{
+					stopScanDevice();
+				}
+			}else if (action.equals(Keys.ACTION_SERVICE_BLE_CONNECT)){
+				//连接设备
+				String address = intent.getStringExtra(Keys.KEY_DEVICE_ADDRESS);
+				ConnectState state = connectDevice(null,address);
+				sendConnectState(address,state);
+			}else if (action.equals(Keys.ACTION_SERVICE_BLE_DISCONNECT)){
+				//断开当前连接的设备
+				disconnectDevice();
+			}else if(action.equals(Keys.ACTION_SERVICE_SETTING_SCENE_TYPE)){
+				//设置纸张场景
+				SceneType type = SceneType.toSceneType(intent.getIntExtra(Keys.DEFAULT_SCENE_KEY, 0));
+				int width = intent.getIntExtra(Keys.DEFAULT_SCENE_WIDTH_KEY, 0);
+				int height = intent.getIntExtra(Keys.DEFAULT_SCENE_HEIGHT_KEY, 0);
+				int offsetX = intent.getIntExtra(Keys.DEFAULT_SCENE_OFFSET_X_KEY, 0);
+				int offsetY = intent.getIntExtra(Keys.DEFAULT_SCENE_OFFSET_Y_KEY, 0);
+				setSceneType(type,width,height,offsetX,offsetY);
+			}else if (action.equals(Keys.ACTION_SERVICE_SETTING_SEND_RECEIVER)){
+				//设置打开广播发送信息
+				boolean value = intent.getBooleanExtra(Keys.KEY_VALUE,true);
+				setBroadcastEnabled(value);
+			}		
+		}
+	}
 	
 	private class DeviceGattCallback extends BluetoothGattCallback{
 		
@@ -726,11 +830,6 @@ public class SmartPenService extends Service{
 					msg.obj = item;
 					msg.sendToTarget();
 					
-					//发送笔迹JSON格式广播包
-					Intent intent = new Intent(Keys.ACTION_SERVICE_SEND_POINT);
-					intent.putExtra(Keys.KEY_PEN_POINT, item.toJsonString());
-					sendBroadcast(intent);
-					
 					//Log.v(TAG, "out point:"+item.toString());
 					addFixedPoint(item);
 					
@@ -795,7 +894,7 @@ public class SmartPenService extends Service{
 					mBufferDevices.put(address, deviceObject);
 					
 					Message msg = Message.obtain(mHandler, Keys.MSG_DISCOVERY_DEVICE);
-					msg.obj = address;
+					msg.obj = deviceObject.address;
 					msg.sendToTarget();
 				}
 			}
