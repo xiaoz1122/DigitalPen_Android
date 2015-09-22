@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import android.bluetooth.BluetoothGattCharacteristic;
+import android.util.Log;
 
 import com.smart.pen.core.model.DeviceObject;
 import com.smart.pen.core.model.PointObject;
@@ -76,15 +77,20 @@ public class BlePenUtil {
 	 */
 	private static byte[] getValidPenData(List<Byte> buffer){
 		byte[] result = null;
-		if(buffer.size() >= PEN_DATA_VALID_LENGTH){
-			int index = 0;
-			int residue = buffer.size() % PEN_DATA_VALID_LENGTH;
-			
-			result = new byte[buffer.size() - residue];
-			
-			while(buffer.size() > residue){
-				result[index] = buffer.remove(0);
-				index++;
+		//buffer存2组以上数据再开始吐坐标数据，防止丢包造成数据混乱
+		if(buffer.size() >= PEN_DATA_VALID_LENGTH * 2){
+			//对齐数据，检查2组数据
+			//把多余的丢掉
+			if(alignPenData(buffer,2)){
+				int index = 0;
+				int residue = buffer.size() % PEN_DATA_VALID_LENGTH;
+				
+				result = new byte[buffer.size() - residue];
+				
+				while(buffer.size() > residue){
+					result[index] = buffer.remove(0);
+					index++;
+				}
 			}
 		}
 		return result;
@@ -165,8 +171,61 @@ public class BlePenUtil {
 	 */
 	private static boolean isPenData(byte[] data,int i){
 		boolean result = false;
-		if(toHex(data[i]).startsWith("8") && toHex(data[i+1]).startsWith("8")){
+		if(isPenData(data[i],data[i+1])){
 			result = true;
+		}
+		return result;
+	}
+	
+	/***
+	 * 检查是否是笔数据
+	 * @param b1 笔数据第一个字节
+	 * @param b2 笔数据第二个字节
+	 * @return
+	 */
+	private static boolean isPenData(byte b1,byte b2){
+		boolean result = false;
+		if(toHex(b1).startsWith("8") && toHex(b2).startsWith("8")){
+			result = true;
+		}
+		return result;
+	}
+	
+	/**
+	 * 对齐笔数据
+	 * @param buffer
+	 * @param checkNum
+	 * @return flase 对齐不成功，没有有效数据
+	 */
+	private static boolean alignPenData(List<Byte> buffer,int checkNum){
+		int length = PEN_DATA_VALID_LENGTH * checkNum;
+		List<Byte> data = buffer.subList(0, length);
+		
+		int index = -1;
+		int num = 0;
+		for(int i = 0;i < length - PEN_DATA_VALID_LENGTH;i++){
+			for(int n = 0;n < checkNum;n++){
+				byte b1 = data.get(i + PEN_DATA_VALID_LENGTH * n);
+				byte b2 = data.get(i + 1 + PEN_DATA_VALID_LENGTH * n);
+				if(isPenData(b1,b2))num++;
+			}
+			if(num >= checkNum){
+				index = i;
+				break;
+			}
+		}
+		
+		boolean result = false;
+		if(index >= 0){
+			result = true;
+			if(index > 0){
+				StringBuilder delValue = new StringBuilder();
+				int newLength = buffer.size() - index;
+				while(buffer.size() > newLength){
+					delValue.append(toHex(buffer.remove(0))+" ");
+				}
+				Log.v(TAG, "Del PenData:"+delValue.toString());
+			}
 		}
 		return result;
 	}
