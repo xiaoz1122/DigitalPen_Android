@@ -261,6 +261,9 @@ public class PenInfo extends Activity{
 		params.setMargins(sizeObj.windowLeft, sizeObj.windowTop, 0, 0);
 		mLineWindow.setLayoutParams(params);
 		mRrawingBoard.setSize(sizeObj.windowWidth, sizeObj.windowHeight);
+		
+		if(mShowType == 1)
+			service.sendTestData();
 	}
 	
 	/**

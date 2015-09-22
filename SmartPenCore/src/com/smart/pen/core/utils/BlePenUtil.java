@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import android.bluetooth.BluetoothGattCharacteristic;
+import android.util.Log;
 
 import com.smart.pen.core.model.DeviceObject;
 import com.smart.pen.core.model.PointObject;
@@ -116,11 +117,11 @@ public class BlePenUtil {
 				list.add(item);
 				
 				//打印笔数据
-//				String value = "";
-//				for(int n = 0;n < PEN_DATA_VALID_LENGTH;n++){
-//					value += toHex(penData[i+n])+" ";
-//				}
-//				Log.v(TAG, "PenData:"+value);
+				String value = "";
+				for(int n = 0;n < PEN_DATA_VALID_LENGTH;n++){
+					value += toHex(penData[i+n])+" ";
+				}
+				Log.v(TAG, "PenData:"+value);
 			}
 		}
 	}
@@ -148,11 +149,11 @@ public class BlePenUtil {
 		}
 		
 		//打印ble数据
-//		String value = "";
-//		for(int i = 0;i < result.length;i++){
-//			value += toHex(result[i])+" ";
-//		}
-//		Log.v(TAG, "BLE Data:"+value);
+		String value = "";
+		for(int i = 0;i < result.length;i++){
+			value += toHex(result[i])+" ";
+		}
+		Log.v(TAG, "BLE Data:"+value);
 		
 		return result;
 	}
