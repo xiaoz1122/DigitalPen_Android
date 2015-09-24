@@ -56,6 +56,8 @@ public class PenInfo extends Activity{
 	private int mShowType = 0;
 	private Button mXYBut;
 	private Button mLineBut;
+	private Button mTestBut1;
+	private Button mTestBut2;
 
 	private LinearLayout mXYFrame;
 	private RelativeLayout mLineFrame;
@@ -112,6 +114,9 @@ public class PenInfo extends Activity{
 		mXYBut = (Button) findViewById(R.id.xyBut);
 		mLineBut = (Button) findViewById(R.id.lineBut);
 		
+		mTestBut1 = (Button) findViewById(R.id.testBut1);
+		mTestBut2 = (Button) findViewById(R.id.testBut2);
+		
 		mXYFrame = (LinearLayout) findViewById(R.id.xyFrame);
 		mLineFrame = (RelativeLayout) findViewById(R.id.lineFrame);
 		mLineWindow = (FrameLayout) findViewById(R.id.lineWindow);
@@ -147,6 +152,22 @@ public class PenInfo extends Activity{
 			public void onClick(View v) {
 				mShowType = 1;
 				initPage();
+			}
+		});
+		
+		mTestBut1.setOnClickListener(new OnClickListener(){
+			@Override
+			public void onClick(View v) {
+				mSmartPenService.readPenData();
+				Toast.makeText(PenInfo.this, "read ffc1", Toast.LENGTH_SHORT).show();
+			}
+		});
+		mTestBut2.setOnClickListener(new OnClickListener(){
+			@Override
+			public void onClick(View v) {
+				mSmartPenService.setCharacteristicNotification();
+				Toast.makeText(PenInfo.this, "set notification", Toast.LENGTH_SHORT).show();
+				
 			}
 		});
 
@@ -261,6 +282,9 @@ public class PenInfo extends Activity{
 		params.setMargins(sizeObj.windowLeft, sizeObj.windowTop, 0, 0);
 		mLineWindow.setLayoutParams(params);
 		mRrawingBoard.setSize(sizeObj.windowWidth, sizeObj.windowHeight);
+		
+		if(mShowType == 1)
+			service.sendTestData();
 	}
 	
 	/**

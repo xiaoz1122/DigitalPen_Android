@@ -155,10 +155,11 @@ public class BlePenUtil {
 		
 		//打印ble数据
 //		String value = "";
-//		for(int i = 0;i < result.length;i++){
-//			value += toHex(result[i])+" ";
+//		for(int i = 0;i < bleData.length;i++){
+//			value += toHex(bleData[i])+" ";
 //		}
 //		Log.v(TAG, "BLE Data:"+value);
+		//LogUtil.addLog("BLE Data:"+value);
 		
 		return result;
 	}
@@ -224,7 +225,8 @@ public class BlePenUtil {
 				while(buffer.size() > newLength){
 					delValue.append(toHex(buffer.remove(0))+" ");
 				}
-				Log.v(TAG, "Del PenData:"+delValue.toString());
+				//Log.v(TAG, "Del PenData:"+delValue.toString());
+				//LogUtil.addLog("Del PenData:"+delValue.toString());
 			}
 		}
 		return result;
