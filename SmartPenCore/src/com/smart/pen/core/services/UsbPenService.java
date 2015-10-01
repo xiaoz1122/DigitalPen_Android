@@ -34,8 +34,8 @@ import android.util.Log;
  *
  * Description
  */
-public class USBPenService extends PenService{
-	public static final String TAG = USBPenService.class.getSimpleName();
+public class UsbPenService extends PenService{
+	public static final String TAG = UsbPenService.class.getSimpleName();
 
 	private UsbManager mUsbManager;
 	private UsbEndpoint mUsbEndpoint;
@@ -123,7 +123,7 @@ public class USBPenService extends PenService{
 		mUsbDeviceConnection = null;
 		mUsbInterface = null;
 		currUsbDevice = null;
-		
+		sendConnectState(null,ConnectState.DISCONNECTED);
 		return ConnectState.DISCONNECTED;
 	}
 
@@ -132,7 +132,7 @@ public class USBPenService extends PenService{
 	public boolean scanDevice(OnScanDeviceListener listener) {
 		this.onScanDeviceListener = listener;
 		if(!isScanning){
-			new ScanDeviceTask().execute();
+			new ScanDeviceTask().executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
 		}
 		return true;
 	}
@@ -152,7 +152,7 @@ public class USBPenService extends PenService{
 	
 	public void startReadData(){
 		if(!isReadData)
-			new ReadDataTask().execute();
+			new ReadDataTask().executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
 	}
 	
 	public void stopReadData(){
@@ -161,8 +161,8 @@ public class USBPenService extends PenService{
 
 	public class LocalBinder extends Binder {
 		/**获取服务对象**/
-		public USBPenService getService() {
-			return USBPenService.this;
+		public UsbPenService getService() {
+			return UsbPenService.this;
 		}
 	}
 	
@@ -195,7 +195,7 @@ public class USBPenService extends PenService{
 				startReadData();
 			}else if(result == ConnectState.CONNECT_FAIL_PERMISSION){
 				PendingIntent intent = PendingIntent.getBroadcast(
-											USBPenService.this, 
+											UsbPenService.this, 
 											Activity.RESULT_OK, 
 											new Intent(Keys.ACTION_USB_PERMISSION), 
 											0);
@@ -226,7 +226,7 @@ public class USBPenService extends PenService{
 						break;
 					}
 											
-					usbRequest.setClientData(USBPenService.this);
+					usbRequest.setClientData(UsbPenService.this);
 					boolean isrequest = usbRequest.queue(buffer, inmax);
 					if(isrequest){
 						if(mUsbDeviceConnection.requestWait() == usbRequest){

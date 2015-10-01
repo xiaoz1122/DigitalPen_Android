@@ -119,6 +119,14 @@ public abstract class PenService extends Service{
 	}
 	
 	/**
+	 * 设置连接状态变更监听
+	 * @param listener
+	 */
+	public void setOnConnectStateListener(OnConnectStateListener listener){
+		this.onConnectStateListener = listener;
+	}
+	
+	/**
 	 * 设置笔坐标变更监听
 	 * @param listener
 	 */

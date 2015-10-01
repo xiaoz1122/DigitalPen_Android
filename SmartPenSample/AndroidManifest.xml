@@ -47,7 +47,7 @@
             </intent-filter>
         </service>
         <service
-            android:name="com.smart.pen.core.services.USBPenService"
+            android:name="com.smart.pen.core.services.UsbPenService"
             android:enabled="true">
         </service>
     </application>

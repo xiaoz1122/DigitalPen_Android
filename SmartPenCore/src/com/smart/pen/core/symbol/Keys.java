@@ -45,7 +45,7 @@ public class Keys {
 	public static final String APP_PEN_SERVICE_NAME = "com.smart.pen.core.services.SmartPenService";
 	
 	/**后台USB服务key**/
-	public static final String APP_USB_SERVICE_NAME = "com.smart.pen.core.services.USBPenService";
+	public static final String APP_USB_SERVICE_NAME = "com.smart.pen.core.services.UsbPenService";
 	
 	/**广播设置发送广播状态**/
 	public final static String ACTION_SERVICE_SETTING_SEND_RECEIVER = "com.smart.pen.core.services.setting.Send_Receiver";
