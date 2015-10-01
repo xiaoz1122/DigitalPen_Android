@@ -3,6 +3,7 @@ package com.smart.pen.sample;
 import com.smart.pen.core.common.Listeners.OnFixedPointListener;
 import com.smart.pen.core.common.Listeners.OnPointChangeListener;
 import com.smart.pen.core.model.PointObject;
+import com.smart.pen.core.services.PenService;
 import com.smart.pen.core.services.SmartPenService;
 import com.smart.pen.core.symbol.LocationState;
 
@@ -29,7 +30,7 @@ import android.widget.TextView;
 public class SettingSize extends Activity{
 	public static final String TAG = SettingSize.class.getSimpleName();
 	
-	private SmartPenService mPenService;
+	private PenService mPenService;
 	private PointObject currPointObject;
 
 	private ImageView mTitleImg;

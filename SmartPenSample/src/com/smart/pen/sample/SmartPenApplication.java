@@ -1,6 +1,8 @@
 package com.smart.pen.sample;
 
+import com.smart.pen.core.services.PenService;
 import com.smart.pen.core.services.SmartPenService;
+import com.smart.pen.core.services.USBPenService;
 import com.smart.pen.core.symbol.Keys;
 
 import android.app.ActivityManager;
@@ -38,17 +40,21 @@ public class SmartPenApplication extends Application{
      * 获取笔服务
      * @return
      */
-    public SmartPenService getPenService(){
+    public PenService getPenService(){
     	return mPenService;
     }
     
     
-    private SmartPenService mPenService;
+    private PenService mPenService;
 	public boolean isBindPenService = false;
     private Intent mPenServiceIntent;
-	private Intent getPenServiceIntent(){
+    public Intent getPenServiceIntent(String svrName){
 		if(mPenServiceIntent == null){
-			mPenServiceIntent = new Intent(this, SmartPenService.class);
+			if(Keys.APP_PEN_SERVICE_NAME.equals(svrName)){
+				mPenServiceIntent = new Intent(this, SmartPenService.class);
+			}else if(Keys.APP_USB_SERVICE_NAME.equals(svrName)){
+				mPenServiceIntent = new Intent(this, USBPenService.class);
+			}
 		}
 		return mPenServiceIntent;
 	}
@@ -59,7 +65,7 @@ public class SmartPenApplication extends Application{
 			mPenServiceConnection = new ServiceConnection() {
 				public void onServiceConnected(ComponentName className,
 						IBinder rawBinder) {
-					mPenService = ((SmartPenService.LocalBinder) rawBinder).getService();
+					mPenService = ((PenService.LocalBinder) rawBinder).getService();
 				}
 		
 				public void onServiceDisconnected(ComponentName classname) {
@@ -73,24 +79,24 @@ public class SmartPenApplication extends Application{
 	}
 
 	/**开始后台服务**/
-	protected void startPenService(){
-		Log.v(TAG, "startPenService");
-		startService(getPenServiceIntent());
+	protected void startPenService(String svrName){
+		Log.v(TAG, "startPenService name:"+svrName);
+		startService(getPenServiceIntent(svrName));
 	}
 	/**停止后台服务**/
-	protected void stopPenService(){
+	protected void stopPenService(String svrName){
 		Log.v(TAG, "stopPenService");
-		stopService(getPenServiceIntent());
+		stopService(getPenServiceIntent(svrName));
 	}
 
 	/**绑定后台服务,如果没有启动则启动服务再绑定**/
-	public void bindPenService(){
-		if(!isServiceRunning()){
+	public void bindPenService(String svrName){
+		if(!isServiceRunning(svrName)){
 			isBindPenService = false;
-			this.startPenService();
+			this.startPenService(svrName);
 		}
 		if(!isBindPenService){
-			isBindPenService = bindService(getPenServiceIntent(), getPenServiceConnection(), Context.BIND_AUTO_CREATE);
+			isBindPenService = bindService(getPenServiceIntent(svrName), getPenServiceConnection(), Context.BIND_AUTO_CREATE);
 			Log.v(TAG, "bindService");
 		}
 	}
@@ -107,10 +113,10 @@ public class SmartPenApplication extends Application{
 
     
     /**查询后台服务是否已开启**/
-	protected boolean isServiceRunning() {
+	protected boolean isServiceRunning(String serviceName) {
 	    ActivityManager manager = (ActivityManager) getSystemService(ACTIVITY_SERVICE);
 	    for (RunningServiceInfo service : manager.getRunningServices(Integer.MAX_VALUE)) {
-	        if (service.service.getClassName().compareTo(Keys.APP_PEN_SERVICE_NAME) == 0) {
+	        if (service.service.getClassName().compareTo(serviceName) == 0) {
 	            return true;
 	        }
 	    }

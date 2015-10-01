@@ -4,7 +4,8 @@ import java.util.HashMap;
 
 import com.smart.pen.core.common.Listeners.OnScanDeviceListener;
 import com.smart.pen.core.model.DeviceObject;
-import com.smart.pen.core.services.SmartPenService;
+import com.smart.pen.core.services.PenService;
+import com.smart.pen.core.symbol.Keys;
 
 import android.app.Activity;
 import android.content.Intent;
@@ -30,9 +31,6 @@ public class MainActivity extends Activity {
 		super.onCreate(savedInstanceState);
 		setContentView(R.layout.activity_main);
 		
-		
-		//绑定笔服务
-		SmartPenApplication.getInstance().bindPenService();
 		mPenAdapter = new PenAdapter(this);
 		
 		mEmptytext = (TextView) findViewById(R.id.emptytext);
@@ -44,7 +42,7 @@ public class MainActivity extends Activity {
 			public void onItemClick(AdapterView<?> arg0, View arg1, int arg2,
 					long arg3) {
 				//停止搜索
-				SmartPenService service = SmartPenApplication.getInstance().getPenService();
+				PenService service = SmartPenApplication.getInstance().getPenService();
 				if(service != null){
 					service.stopScanDevice();
 				}
@@ -53,7 +51,7 @@ public class MainActivity extends Activity {
 				
 				Intent intent = new Intent();
 				intent.setClass(MainActivity.this, PenInfo.class);
-				intent.putExtra("address", item.address);
+				intent.putExtra(Keys.KEY_DEVICE_ADDRESS, item.address);
 				startActivity(intent);
 			}
 		});
@@ -67,7 +65,7 @@ public class MainActivity extends Activity {
 				mPenAdapter.clearItems();
 				mPenAdapter.notifyDataSetChanged();
 				
-				SmartPenService service = SmartPenApplication.getInstance().getPenService();
+				PenService service = SmartPenApplication.getInstance().getPenService();
 				if(service != null){
 					service.scanDevice(onScanDeviceListener);
 				}

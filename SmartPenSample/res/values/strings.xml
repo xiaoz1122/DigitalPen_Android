@@ -20,5 +20,7 @@
     <string name="setting_size_step2">请将数码笔按在纸张右下角，完成设置</string>
     <string name="setting_size_end">纸张大小定义完成，请点击确认按钮返回</string>
     <string name="setting_size_small">自定义纸张尺寸太小，请扩大书写范围。</string>
+	<string name="service_ble_start">正在启动蓝牙服务，请稍后...</string>
+	<string name="service_usb_start">正在启动USB服务，请稍后...</string>
 
 </resources>

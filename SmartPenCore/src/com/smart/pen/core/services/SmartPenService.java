@@ -1,12 +1,10 @@
 package com.smart.pen.core.services;
 
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.UUID;
 
 import android.annotation.SuppressLint;
-import android.app.Service;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothGatt;
@@ -27,8 +25,6 @@ import android.os.Message;
 import android.util.Log;
 
 import com.smart.pen.core.common.Listeners.OnConnectStateListener;
-import com.smart.pen.core.common.Listeners.OnFixedPointListener;
-import com.smart.pen.core.common.Listeners.OnPointChangeListener;
 import com.smart.pen.core.common.Listeners.OnScanDeviceListener;
 import com.smart.pen.core.model.DeviceObject;
 import com.smart.pen.core.model.PointObject;
@@ -45,47 +41,19 @@ import com.smart.pen.core.utils.BlePenUtil;
  * @date 2015年6月11日 上午11:46:19
  *
  */
-public class SmartPenService extends Service{
+public class SmartPenService extends PenService{
 	public static final String TAG = SmartPenService.class.getSimpleName();
 	
 	/**
 	 * 初始读取笔数据次数，用于清除接收器中的缓存
 	 */
 	public static final int INIT_READ_DATA_NUM = 10;
-	/**
-	 * 自定义纸张尺寸最小值
-	 */
-	public static final int SETTING_SIZE_MIN = 500;
-	/**
-	 * 自定义纸张尺寸最大值
-	 */
-	public static final int SETTING_SIZE_MAX = 20000;
 
 	private static final UUID SERVICE_UUID = UUID.fromString("0000FE03-0000-1000-8000-00805f9b34fb");
 	private static final UUID NOTIFICATION_DESCRIPTOR_UUID = UUID.fromString("00002902-0000-1000-8000-00805f9b34fb");
 	private static final UUID PEN_DATA_UUID = UUID.fromString("0000ffc1-0000-1000-8000-00805f9b34fb");
 	
-	private boolean isBroadcast;
-	private boolean isScanning;
-	private int mScanTime = 10000;
 	private int mReadyNumber = INIT_READ_DATA_NUM;
-	
-	/**固定点停留计算次数**/
-	private static final int FIXED_POINT_COUNT = 50;
-	private ArrayList<Short> mFixedPointX = new ArrayList<Short>(FIXED_POINT_COUNT);
-	private ArrayList<Short> mFixedPointY = new ArrayList<Short>(FIXED_POINT_COUNT);
-	private PointObject mFirstPointObject = null;
-	private PointObject mSecondPointObject = null;
-	
-	/**
-	 * 判断定位第一个坐标按下状态<br />
-	 * 这个值用来防止程序判断完成第一个坐标定位后，立即进入第二个坐标判断
-	 * **/
-	private boolean mFirstPointDown = false;
-
-	/**场景坐标对象**/
-	private PointObject mScenePointObject = new PointObject(); 
-	
 
 	private PenServiceReceiver mPenServiceReceiver;
 	
@@ -95,15 +63,11 @@ public class SmartPenService extends Service{
 	private BluetoothGattCharacteristic mPenDataCharacteristic;
 	private BluetoothGattCallback mBluetoothGattCallback = new DeviceGattCallback();
 	
-	private OnScanDeviceListener onScanDeviceListener = null;
-	private OnConnectStateListener onConnectStateListener = null;
-	private OnPointChangeListener onPointChangeListener = null;
-	private OnFixedPointListener onFixedPointListener = null;
-	
 	/**缓存扫描设备**/
 	private HashMap<String,DeviceObject> mBufferDevices = new HashMap<String,DeviceObject>();
 	private ScanDeviceCallback mScanDeviceCallback = new ScanDeviceCallback();
-	private final IBinder mBinder = new LocalBinder();
+	
+	private List<PointObject> currPointList = null;
 	
 	@Override
 	public void onCreate() {
@@ -126,15 +90,31 @@ public class SmartPenService extends Service{
 	}
 
 	@Override
-	public IBinder onBind(Intent intent) {
-		// TODO Auto-generated method stub
-		return mBinder;
+	public ConnectState checkDeviceConnect() {
+		ConnectState result = ConnectState.NOTHING;
+		if(mBluetoothGatt != null){
+			result = ConnectState.CONNECTED;
+		}
+		return result;
 	}
-	
+
 	@Override
-	public boolean onUnbind(Intent intent) {
-		Log.v(TAG, "onUnbind");
-		return super.onUnbind(intent);
+	public ConnectState disconnectDevice(){
+		if(mBluetoothGatt != null){
+			mBluetoothGatt.disconnect();
+			return ConnectState.DISCONNECTING;
+		}else{
+			return ConnectState.DISCONNECTED;
+		}
+	}
+
+	@Override
+	public void sendFixedPointState(LocationState state) {
+		// TODO Auto-generated method stub
+
+		Message msg = Message.obtain(mHandler, Keys.MSG_OUT_FIXED_INFO);
+		msg.obj = state;
+		msg.sendToTarget();
 	}
 	
 	/**判断设备是否支持蓝牙**/
@@ -160,100 +140,6 @@ public class SmartPenService extends Service{
 	}
 	
 	/**
-	 * 设置是否开启广播，默认为false。如果需要通过广播的方式与Service交互，那么请设置为true。
-	 * @param value
-	 */
-	public void setBroadcastEnabled(boolean value){
-		this.isBroadcast = value;
-	}
-	
-	/**
-	 * 获取场景宽度
-	 * @return
-	 */
-	public short getSceneWidth(){
-		return mScenePointObject.getWidth();
-	}
-	
-	/**
-	 * 获取场景高度
-	 * @return
-	 */
-	public short getSceneHeight(){
-		return mScenePointObject.getHeight();
-	}
-	
-	/**
-	 * 获取当前场景类型
-	 * @return
-	 */
-	public SceneType getSceneType(){
-		SharedPreferences preferences = this.getSharedPreferences(Keys.DEFAULT_SETTING_KEY, Context.MODE_PRIVATE);
-		SceneType type = SceneType.toSceneType(preferences.getInt(Keys.DEFAULT_SCENE_KEY, SceneType.NOTHING.getValue()));
-		
-		if(type != SceneType.NOTHING){
-			mScenePointObject = new PointObject();
-			mScenePointObject.setSceneType(type);
-			if(type == SceneType.CUSTOM){
-				short width = (short)preferences.getInt(Keys.DEFAULT_SCENE_WIDTH_KEY, 0);
-				short height = (short)preferences.getInt(Keys.DEFAULT_SCENE_HEIGHT_KEY, 0);
-				short offsetX = (short)preferences.getInt(Keys.DEFAULT_SCENE_OFFSET_X_KEY, 0);
-				short offsetY = (short)preferences.getInt(Keys.DEFAULT_SCENE_OFFSET_Y_KEY, 0);
-				
-				mScenePointObject.setCustomScene(width, height, offsetX, offsetY);
-			}
-		}
-		return type;
-	}
-	
-	/**
-	 * 设置当前场景类型
-	 * @param value
-	 * @return
-	 */
-	public boolean setSceneType(SceneType value){
-		return setSceneType(value,0,0);
-	}
-	
-	/**
-	 * 设置当前场景类型
-	 * @param value
-	 * @param width
-	 * @param height
-	 */
-	public boolean setSceneType(SceneType value,int width,int height){
-		return setSceneType(value,width,height,0,0);
-	}
-	
-	/**
-	 * 设置当前场景类型
-	 * @param value
-	 * @param width
-	 * @param height
-	 * @param offsetX	x偏移量
-	 * @param offsetY	y偏移量
-	 * @return
-	 */
-	public boolean setSceneType(SceneType value,int width,int height,int offsetX,int offsetY){
-		boolean result = false;
-		SharedPreferences preferences = this.getSharedPreferences(Keys.DEFAULT_SETTING_KEY, Context.MODE_PRIVATE);
-		SharedPreferences.Editor editor = preferences.edit();
-		editor.putInt(Keys.DEFAULT_SCENE_KEY, value.getValue());
-		editor.putInt(Keys.DEFAULT_SCENE_WIDTH_KEY, width);
-		editor.putInt(Keys.DEFAULT_SCENE_HEIGHT_KEY, height);
-		editor.putInt(Keys.DEFAULT_SCENE_OFFSET_X_KEY, offsetX);
-		editor.putInt(Keys.DEFAULT_SCENE_OFFSET_Y_KEY, offsetY);
-		if(result = editor.commit()){
-			mScenePointObject = new PointObject();
-			mScenePointObject.setSceneType(value);
-			
-			if(value == SceneType.CUSTOM)
-				mScenePointObject.setCustomScene((short)width, (short)height,(short)offsetX,(short)offsetY);
-		}
-		return result;
-	}
-	
-	/**
 	 * 获取最后一次连接的设备
 	 * @return
 	 */
@@ -273,35 +159,8 @@ public class SmartPenService extends Service{
 		editor.putString(Keys.DEFAULT_LAST_DEVICE_KEY, address);
 		editor.commit();
 	}
-	
-	/**
-	 * 设置笔坐标变更监听
-	 * @param listener
-	 */
-	public void setOnPointChangeListener(OnPointChangeListener listener){
-		this.onPointChangeListener = listener;
-	}
-	
-	/**
-	 * 设置坐标定点监听
-	 * @param listener
-	 */
-	public void setOnFixedPointListener(OnFixedPointListener listener){
-		this.onFixedPointListener = listener;
-	}
-	
-	/**
-	 * 设置扫描持续时间
-	 * @param millisecond
-	 */
-	public void setScanTime(int millisecond){
-		this.mScanTime = millisecond;
-	}
-	
-	/**
-	 * 扫描设备
-	 * @param listener
-	 */
+
+	@Override
 	public boolean scanDevice(OnScanDeviceListener listener){
 		return scanDevice(listener,null);
 	}
@@ -329,6 +188,7 @@ public class SmartPenService extends Service{
 	/**
 	 * 停止扫描
 	 */
+	@Override
 	public void stopScanDevice(){
 		if(isScanning){
 			this.mHandler.removeMessages(Keys.MSG_DISCOVERY_END);
@@ -360,19 +220,6 @@ public class SmartPenService extends Service{
 			}
 		}else{
 			return ConnectState.NOTHING;
-		}
-	}
-
-	/**
-	 * 断开设备连接
-	 * @return
-	 */
-	public ConnectState disconnectDevice(){
-		if(mBluetoothGatt != null){
-			mBluetoothGatt.disconnect();
-			return ConnectState.DISCONNECTING;
-		}else{
-			return ConnectState.DISCONNECTED;
 		}
 	}
 	
@@ -462,133 +309,6 @@ public class SmartPenService extends Service{
 		}
 		return result;
 	}
-
-	
-	/**
-	 * 添加固定点记录
-	 * @param x
-	 * @param y
-	 */
-	private void addFixedPoint(PointObject point){
-		if(point.isRoute){
-			mFixedPointX.add(point.originalX);
-			mFixedPointY.add(point.originalY);
-			
-			while(mFixedPointX.size() > FIXED_POINT_COUNT){
-				mFixedPointX.remove(0);
-			}
-			while(mFixedPointY.size() > FIXED_POINT_COUNT){
-				mFixedPointY.remove(0);
-			}
-		}else{
-			mFixedPointX.clear();
-			mFixedPointY.clear();
-		}
-	}
-	
-	/**
-	 * 当前状态是否是固定在一个点上
-	 * @return
-	 */
-	private boolean isFixedPoint(){
-		int result = 0;
-		if(mFixedPointX.size() >= FIXED_POINT_COUNT && mFixedPointY.size() >= FIXED_POINT_COUNT){
-			int sumX = 0;
-			int sumY = 0;
-			for(int i = 0;i < mFixedPointX.size();i++){
-				sumX += mFixedPointX.get(i);
-			}
-			for(int i = 0;i < mFixedPointY.size();i++){
-				sumY += mFixedPointY.get(i);
-			}
-			
-			int gapX = (sumX / mFixedPointX.size()) - mFixedPointX.get(0);
-			int gapY = (sumY / mFixedPointY.size()) - mFixedPointY.get(0);
-			
-			if(Math.abs(gapX) < 50)result++;
-			if(Math.abs(gapY) < 50)result++;
-		}
-		return result == 2;
-	}
-	
-	/**
-	 * 重新定位纸张尺寸
-	 */
-	public void againFixedPoint(){
-		mFirstPointObject = null;
-		mSecondPointObject = null;
-		
-		mFirstPointDown = false;
-		
-		mFixedPointX.clear();
-		mFixedPointY.clear();
-	}
-	
-	/**
-	 * 应用自定义坐标
-	 */
-	public void applyFixedPoint(){
-		if(mFirstPointObject != null && mSecondPointObject != null){
-			int width = Math.abs(mSecondPointObject.originalX - mFirstPointObject.originalX);
-			//根据定位规则，第2个点Y必须大于第1个点Y
-			int height = mSecondPointObject.originalY - mFirstPointObject.originalY;
-			int offsetX = width / 2 - mSecondPointObject.originalX;
-
-			setSceneType(SceneType.CUSTOM,width,height,offsetX,mFirstPointObject.originalY);
-		}
-		againFixedPoint();
-	}
-	
-	/**
-	 * 发送固定点坐标信息
-	 * @param point
-	 */
-	private void sendFixedPointInfo(PointObject point){
-		if(onFixedPointListener == null)return;
-		
-		LocationState state = LocationState.SecondComp;
-		if(mFirstPointObject == null){
-			if(isFixedPoint()){
-				mFirstPointObject = point;
-				mFirstPointDown = true;
-				state = LocationState.FirstComp;
-			}else{
-				state = LocationState.DontLocation;
-			}
-		}else if(mSecondPointObject == null){
-			if(!mFirstPointDown && isFixedPoint()){
-				//判断第二个点只能出现在右下角
-				if(point.originalX < mFirstPointObject.originalX || point.originalY < mFirstPointObject.originalY){
-					//如果不是，那么提示已定位第一个点，请在右下角定位第二个点
-					state = LocationState.FirstComp;
-				}else if(point.originalX - mFirstPointObject.originalX < SETTING_SIZE_MIN
-						|| point.originalY - mFirstPointObject.originalY < SETTING_SIZE_MIN){
-					state = LocationState.LocationSmall;
-				}else{
-					mSecondPointObject = point;
-					state = LocationState.SecondComp;
-				}
-			}else{
-				state = LocationState.FirstComp;
-			}
-		}
-		Message msg = Message.obtain(mHandler, Keys.MSG_OUT_FIXED_INFO);
-		msg.obj = state;
-		msg.sendToTarget();
-	}
-	
-	/**发送连接状态**/
-	public void sendConnectState(String address,ConnectState state){
-		if(onConnectStateListener != null)
-			onConnectStateListener.stateChange(address,state);
-		
-		if(isBroadcast){
-			Intent intent = new Intent(Keys.ACTION_SERVICE_BLE_CONNECT_STATE);
-			intent.putExtra(Keys.KEY_DEVICE_ADDRESS, address);
-			intent.putExtra(Keys.KEY_CONNECT_STATE, state.getValue());
-			sendBroadcast(intent);
-		}
-	}
 	
 	/**发送搜索到的设备**/
 	public void sendDiscoveryDevice(DeviceObject deviceObject){
@@ -604,63 +324,6 @@ public class SmartPenService extends Service{
 			sendBroadcast(intent);
 		}
 	}
-	
-	/**发送笔信息**/
-	private void sendPointInfo(PointObject point){
-
-		if(onPointChangeListener != null)
-			onPointChangeListener.change(point);
-		
-		if(isBroadcast){
-			//发送笔迹JSON格式广播包
-			Intent intent = new Intent(Keys.ACTION_SERVICE_SEND_POINT);
-			intent.putExtra(Keys.KEY_PEN_POINT, point.toJsonString());
-			sendBroadcast(intent);
-		}
-	}
-	
-	/**
-	 * 处理笔数据
-	 * @param device
-	 * @param data
-	 */
-	private void handlerPenData(DeviceObject device,byte[] data){
-		List<PointObject> pointList = BlePenUtil.getPointList(device,data);
-		PointObject item = null;
-		if(pointList.size() > 0){
-			for(int i = 0;i<pointList.size();i++){
-				item = pointList.get(i);
-				if(mScenePointObject.getSceneType() == SceneType.CUSTOM){
-					item.setCustomScene(mScenePointObject.getWidth(), 
-										mScenePointObject.getHeight(),
-										mScenePointObject.getOffsetX(),
-										mScenePointObject.getOffsetY());
-				}else{
-					item.setSceneType(mScenePointObject.getSceneType());
-				}
-				
-				Message msg = Message.obtain(mHandler, Keys.MSG_OUT_POINT);
-				msg.obj = item;
-				msg.sendToTarget();
-				
-				//Log.v(TAG, "out point:"+item.toString());
-				addFixedPoint(item);
-				
-				//定位完第一个坐标，笔被抬起后，记录状态
-				if(mFirstPointDown && !item.isRoute)mFirstPointDown = false;
-			}
-			
-			sendFixedPointInfo(item);
-		}
-	}
-	
-	public class LocalBinder extends Binder {
-		/**获取服务对象**/
-		public SmartPenService getService() {
-			return SmartPenService.this;
-		}
-	}
-	
 
 	@SuppressLint("HandlerLeak")
 	private Handler mHandler = new Handler(){
@@ -675,7 +338,7 @@ public class SmartPenService extends Service{
 				saveLastDevice(address);
 				
 				//清除BLE数据缓存
-				BlePenUtil.clearBleDataBuffer();
+				BlePenUtil.clearDataBuffer();
 				
 				//开始初始化笔数据
 				startInitPenData();
@@ -706,7 +369,9 @@ public class SmartPenService extends Service{
 				sendConnectState((String)msg.obj,ConnectState.SERVICES_FAIL);
 				break;
 			case Keys.MSG_OUT_POINT:
-				sendPointInfo((PointObject)msg.obj);
+				handlerPointList(currPointList);
+				currPointList.clear();
+				currPointList = null;
 				break;
 			case Keys.MSG_OUT_FIXED_INFO:
 				if(onFixedPointListener != null)
@@ -851,7 +516,10 @@ public class SmartPenService extends Service{
 //			Log.v(TAG, "onCharacteristicWrite value: " + readData);
 			
 			DeviceObject device = mBufferDevices.get(gatt.getDevice().getAddress());
-			handlerPenData(device,characteristic.getValue());
+			currPointList = BlePenUtil.getPointList(device,characteristic.getValue());
+			
+			Message msg = Message.obtain(mHandler, Keys.MSG_OUT_POINT);
+			msg.sendToTarget();
 		}
 	}
 	
@@ -860,7 +528,7 @@ public class SmartPenService extends Service{
 	 */
 	private void closeBluetoothGatt(){
 		mReadyNumber = INIT_READ_DATA_NUM;
-		BlePenUtil.clearBleDataBuffer();
+		BlePenUtil.clearDataBuffer();
 		
 		if(mBluetoothGatt != null){
 			Log.v(TAG, "closeBluetoothGatt");

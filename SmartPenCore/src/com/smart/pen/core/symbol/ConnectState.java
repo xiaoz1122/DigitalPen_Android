@@ -28,7 +28,9 @@ public enum ConnectState {
 	/**笔准备完成**/
 	PEN_READY(9),
 	/**笔初始化完成**/
-	PEN_INIT_COMPLETE(10);
+	PEN_INIT_COMPLETE(10),
+	/**连接错误，需要访问权限**/
+	CONNECT_FAIL_PERMISSION(11);
 	
 	private final int value;
 

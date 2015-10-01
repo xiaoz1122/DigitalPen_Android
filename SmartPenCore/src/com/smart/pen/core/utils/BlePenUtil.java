@@ -4,7 +4,6 @@ import java.util.ArrayList;
 import java.util.List;
 
 import android.bluetooth.BluetoothGattCharacteristic;
-import android.util.Log;
 
 import com.smart.pen.core.model.DeviceObject;
 import com.smart.pen.core.model.PointObject;
@@ -18,21 +17,8 @@ import com.smart.pen.core.symbol.DeviceVersion;
  *
  * Description
  */
-public class BlePenUtil {
+public class BlePenUtil extends PenDataUtil{
 	public static final String TAG = BlePenUtil.class.getSimpleName();
-	
-	/**笔数据有效长度**/
-	public static final int PEN_DATA_VALID_LENGTH = 6;
-	
-	/**蓝牙数据缓存**/
-	private static List<Byte> mBleDataBuffer = new ArrayList<Byte>();
-	
-	/**
-	 * 清除蓝牙数据缓存
-	 */
-	public static void clearBleDataBuffer(){
-		mBleDataBuffer.clear();
-	}
 	
 	/**获取Characteristic返回的值**/
 	public static String getCharacteristicValue(BluetoothGattCharacteristic characteristic){
@@ -59,10 +45,10 @@ public class BlePenUtil {
 		bleData = filterBleData(device,bleData);
 		if(bleData.length > 0){
 			for(int i = 0;i < bleData.length;i++){
-				mBleDataBuffer.add(bleData[i]);
+				mDataBuffer.add(bleData[i]);
 			}
 			
-			byte[] penData = getValidPenData(mBleDataBuffer);
+			byte[] penData = getValidPenData(mDataBuffer);
 			if(penData != null){
 				fillPointList(list,penData);
 			}
@@ -283,24 +269,5 @@ public class BlePenUtil {
 			}
 		}
 		return result;
-	}
-	
-	/**
-	 * byte转string
-	 * @param by
-	 * @return
-	 */
-	public static String toHex(byte by){
-		return ""+"0123456789ABCDEF".charAt((by>>4)&0xf)+"0123456789ABCDEF".charAt(by&0xf);
-	}
-	
-	/**
-	 * Change the bytes to a short number
-	 * @param by  by[0] the low bit,by[1] the higher
-	 * @return short number
-	 */
-	public static short byteToshort(byte[] by){
-		short toshort  = (short) (((by[1]&0xff)<<8)|(by[0]&0xff));
-		return toshort;
 	}
 }

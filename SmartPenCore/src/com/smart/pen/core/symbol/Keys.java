@@ -44,6 +44,9 @@ public class Keys {
 	/**后台ble服务key**/
 	public static final String APP_PEN_SERVICE_NAME = "com.smart.pen.core.services.SmartPenService";
 	
+	/**后台USB服务key**/
+	public static final String APP_USB_SERVICE_NAME = "com.smart.pen.core.services.USBPenService";
+	
 	/**广播设置发送广播状态**/
 	public final static String ACTION_SERVICE_SETTING_SEND_RECEIVER = "com.smart.pen.core.services.setting.Send_Receiver";
 	
@@ -67,6 +70,12 @@ public class Keys {
 	
 	/**发送ble 发现到的设备**/
 	public final static String ACTION_SERVICE_BLE_DISCOVERY_DEVICE = "com.smart.pen.core.services.ble.Discovery_Device";
+	
+	public final static String ACTION_SERVICE_USB_CONNECT = "com.smart.pen.core.services.usb.Connect";
+	public final static String ACTION_SERVICE_USB_DISCONNECT = "com.smart.pen.core.services.usb.Disconnect";
+	
+	/**usb消息广播**/
+	public final static String ACTION_USB_PERMISSION = "com.android.example.USB_PERMISSION";
 	
 	/**笔坐标信息key**/
 	public static final String KEY_PEN_POINT = "pen_point";

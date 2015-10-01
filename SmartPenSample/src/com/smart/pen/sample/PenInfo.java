@@ -31,6 +31,7 @@ import com.smart.pen.core.common.Listeners.OnConnectStateListener;
 import com.smart.pen.core.common.Listeners.OnPointChangeListener;
 import com.smart.pen.core.model.FrameSizeObject;
 import com.smart.pen.core.model.PointObject;
+import com.smart.pen.core.services.PenService;
 import com.smart.pen.core.services.SmartPenService;
 import com.smart.pen.core.symbol.BatteryState;
 import com.smart.pen.core.symbol.ConnectState;
@@ -51,7 +52,7 @@ public class PenInfo extends Activity{
 	
 	/**笔服务广播处理**/
 	private PenServiceReceiver mPenServiceReceiver;
-	private SmartPenService mSmartPenService;
+	private PenService mPenService;
 	private ProgressDialog mProgressDialog;
 	private int mShowType = 0;
 	private Button mXYBut;
@@ -158,25 +159,29 @@ public class PenInfo extends Activity{
 		mTestBut1.setOnClickListener(new OnClickListener(){
 			@Override
 			public void onClick(View v) {
-				mSmartPenService.readPenData();
-				Toast.makeText(PenInfo.this, "read ffc1", Toast.LENGTH_SHORT).show();
+
 			}
 		});
 		mTestBut2.setOnClickListener(new OnClickListener(){
 			@Override
 			public void onClick(View v) {
-				mSmartPenService.setCharacteristicNotification();
-				Toast.makeText(PenInfo.this, "set notification", Toast.LENGTH_SHORT).show();
+
 				
 			}
 		});
+		
+		mPenService = SmartPenApplication.getInstance().getPenService();
 
-		mSmartPenService = SmartPenApplication.getInstance().getPenService();
-		String address = getIntent().getStringExtra("address");
-		if(!address.isEmpty()){
+		String address = getIntent().getStringExtra(Keys.KEY_DEVICE_ADDRESS);
+		if(address != null && !address.isEmpty()){
 			connectDevice(address);
 		}else{
-			alertError("IP address error.");
+			String isUsbSvr = getIntent().getStringExtra(Keys.KEY_VALUE);
+			if(isUsbSvr != null && !isUsbSvr.isEmpty() && isUsbSvr.equals(Keys.APP_USB_SERVICE_NAME)){
+				initSceneType();
+			}else{
+				alertError("IP address error.");
+			}
 		}
 	}
 	
@@ -214,24 +219,32 @@ public class PenInfo extends Activity{
 	public void onResume() {
 		super.onResume();
 		
-		//注册笔服务通过广播方式发送的笔迹坐标信息
-		//示例仅用作演示有这个功能，没有特殊需求可删除以下代码
-		mPenServiceReceiver = new PenServiceReceiver();
-		IntentFilter intentFilter = new IntentFilter();
-		intentFilter.addAction(Keys.ACTION_SERVICE_SEND_POINT);
-		registerReceiver(mPenServiceReceiver, intentFilter);
+		if(mPenService != null){
+			//设置笔坐标监听
+			mPenService.setOnPointChangeListener(onPointChangeListener);
+		}else{
+			//注册笔服务通过广播方式发送的笔迹坐标信息
+			mPenServiceReceiver = new PenServiceReceiver();
+			IntentFilter intentFilter = new IntentFilter();
+			intentFilter.addAction(Keys.ACTION_SERVICE_SEND_POINT);
+			registerReceiver(mPenServiceReceiver, intentFilter);
+		}
 	}
 	
 	@Override
 	public void onPause(){
-		unregisterReceiver(mPenServiceReceiver);
+		if(mPenService != null){
+			mPenService.setOnPointChangeListener(null);
+		}else{
+			unregisterReceiver(mPenServiceReceiver);
+		}
 		super.onPause();
 	}
 	
 	@Override
 	protected void onDestroy() {
 		//断开设备
-		SmartPenService service = SmartPenApplication.getInstance().getPenService();
+		PenService service = SmartPenApplication.getInstance().getPenService();
 		if(service != null){
 			service.disconnectDevice();
 		}
@@ -252,9 +265,7 @@ public class PenInfo extends Activity{
 			mXYFrame.setVisibility(View.GONE);
 			mLineFrame.setVisibility(View.VISIBLE);
 		}
-		SmartPenService service = SmartPenApplication.getInstance().getPenService();
-		//设置笔坐标监听
-		service.setOnPointChangeListener(onPointChangeListener);
+		PenService service = SmartPenApplication.getInstance().getPenService();
 		
 		//状态栏+ActionBar+菜单按钮高
 		Rect frame = new Rect();  
@@ -282,9 +293,6 @@ public class PenInfo extends Activity{
 		params.setMargins(sizeObj.windowLeft, sizeObj.windowTop, 0, 0);
 		mLineWindow.setLayoutParams(params);
 		mRrawingBoard.setSize(sizeObj.windowWidth, sizeObj.windowHeight);
-		
-		if(mShowType == 1)
-			service.sendTestData();
 	}
 	
 	/**
@@ -299,7 +307,7 @@ public class PenInfo extends Activity{
 	 */
 	private void initSceneType(boolean isShow){
 		//检查是否有默认纸张
-		SceneType sceneType = mSmartPenService.getSceneType();
+		SceneType sceneType = mPenService.getSceneType();
 		if(sceneType == SceneType.NOTHING || isShow){
 			//没有设置默认纸张尺寸，弹出选择框
 			final String[] menus = new String[]{"A4(纵向)","A4(横向)","A5(纵向)","A5(横向)","自定义"};
@@ -311,16 +319,16 @@ public class PenInfo extends Activity{
 					dialog.dismiss();
 					switch(which){
 					case 0:
-						mSmartPenService.setSceneType(SceneType.A4);
+						mPenService.setSceneType(SceneType.A4);
 						break;
 					case 1:
-						mSmartPenService.setSceneType(SceneType.A4_horizontal);
+						mPenService.setSceneType(SceneType.A4_horizontal);
 						break;
 					case 2:
-						mSmartPenService.setSceneType(SceneType.A5);
+						mPenService.setSceneType(SceneType.A5);
 						break;
 					case 3:
-						mSmartPenService.setSceneType(SceneType.A5_horizontal);
+						mPenService.setSceneType(SceneType.A5_horizontal);
 						break;
 					case 4:
 						//mSmartPenService.setSceneType(SceneType.CUSTOM);
@@ -376,9 +384,9 @@ public class PenInfo extends Activity{
 	}
 	
 	private void connectDevice(String address){
-		SmartPenService service = SmartPenApplication.getInstance().getPenService();
+		PenService service = SmartPenApplication.getInstance().getPenService();
 		if(service != null){
-			ConnectState state = service.connectDevice(onConnectStateListener, address);
+			ConnectState state = ((SmartPenService)service).connectDevice(onConnectStateListener, address);
 			if(state != ConnectState.CONNECTING){
 				alertError("The pen service connection failure.");
 			}else{
@@ -397,7 +405,9 @@ public class PenInfo extends Activity{
 				//广播的形式接收笔迹信息
 				String pointJson = intent.getStringExtra(Keys.KEY_PEN_POINT);
 				if(pointJson != null && !pointJson.isEmpty()){
-					Log.v(TAG, "pointJson:"+pointJson);
+
+					Toast.makeText(PenInfo.this, pointJson, Toast.LENGTH_SHORT).show();
+					//Log.v(TAG, "pointJson:"+pointJson);
 					
 					//更新笔坐标信息
 					//如果注册了service.setOnPointChangeListener监听，那么请注释掉下面的代码，否则信息会冲突
