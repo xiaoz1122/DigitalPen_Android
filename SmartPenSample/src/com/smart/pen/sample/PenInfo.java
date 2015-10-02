@@ -281,7 +281,7 @@ public class PenInfo extends Activity{
 		sizeObj.sceneWidth = service.getSceneWidth();
 		sizeObj.sceneHeight = service.getSceneHeight();
 		
-		sizeObj = SystemUtil.getWindowSize(sizeObj);
+		sizeObj.initWindowSize();
 
 		Log.v(TAG, "sceneWidth:"+sizeObj.sceneWidth+",sceneHeight:"+sizeObj.sceneHeight);
 		Log.v(TAG, "DisplayWidth:"+mDisplayWidth+",DisplayHeight:"+mDisplayHeight);
