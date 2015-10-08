@@ -19,11 +19,18 @@
 2. 引用jar包的方式导入SmartPenCore.jar包调用，jar文件在SmartPenCore/bin目录下。
 
 
+## 设备支持 ##
+BLE和USB OTG设备
+
+
 ## 配置AndroidManifest.xml ##
 - 打开您项目的“AndroidManifest.xml”，在其中添加如下的权限：
 ```
+	<!--BLE设备需要权限  -->
 	<uses-permission android:name="android.permission.BLUETOOTH" />
 	<uses-permission android:name="android.permission.BLUETOOTH_ADMIN" />
+	<!--USB OTG设备需要权限  -->
+	<uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"/>
 ```
 
 - BLE蓝牙最低支持Android版本为4.3，需添加如下版本支持：
@@ -31,12 +38,18 @@
 	<uses-sdk android:minSdkVersion="18" android:targetSdkVersion="18" />
 ```
 
-- 添加数码笔蓝牙服务
+- 添加BLE数码笔蓝牙服务
 ```
 	<service android:name="com.smart.pen.core.services.SmartPenService" android:enabled="true">
 		<intent-filter android:priority="10000">  
 		<action android:name="android.bluetooth.adapter.action.STATE_CHANGED"/>  
 	  </intent-filter>
+	</service>
+```
+
+- 添加USB OTG数码笔服务
+```
+	<service android:name="com.smart.pen.core.services.UsbPenService" android:enabled="true">
 	</service>
 ```
 
@@ -57,7 +70,7 @@ SDK主要通过SmartPenService服务执行各种操作，可通过以下两种�
 2. 发送广播com.smart.pen.core.symbol.Keys.ACTION_SERVICE_SETTING_SEND_RECEIVER，通知SmartPenService开启广播模式。
 
 
-## 扫描数码笔设备 ##
+## 扫描BLE数码笔设备 ##
 首先需要确认手机蓝牙是否已打开，然后执行以下步骤：
 
 #### BindService方式 ####
@@ -79,7 +92,7 @@ SDK主要通过SmartPenService服务执行各种操作，可通过以下两种�
 3. **获得扫描到的设备：**接收广播com.smart.pen.core.symbol.Keys.ACTION_SERVICE_BLE_DISCOVERY_DEVICE，获得Keys.KEY_DEVICE_ADDRESS设备地址和Keys.KEY_DEVICE_NAME设备名字;
 
 
-## 连接数码笔设备 ##
+## 连接BLE数码笔设备 ##
 #### BindService方式 ####
 **1. 获取需要连接设备的MAC地址**  
 取到扫描返回的设备对象DeviceObject后，可通过对象的address属性获取到MAC地址。
