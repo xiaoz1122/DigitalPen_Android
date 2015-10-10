@@ -2,7 +2,7 @@ package com.smart.pen.core.views;
 
 import java.util.ArrayList;
 
-import com.smart.pen.core.views.ShapeView.ShapeModel;
+import com.smart.pen.core.views.CanvasShapeView.ShapeModel;
 
 import android.annotation.SuppressLint;
 import android.content.Context;
@@ -15,11 +15,10 @@ import android.graphics.PorterDuff.Mode;
 import android.graphics.PorterDuffXfermode;
 import android.util.AttributeSet;
 import android.view.MotionEvent;
-import android.view.ViewGroup;
 import android.widget.FrameLayout;
 
 /**
- * 
+ * 笔画布视图
  * @author Xiaoz
  * @date 2015年10月8日 下午9:49:05
  *
@@ -41,11 +40,15 @@ public class PenCanvasView extends FrameLayout{
     private PenModel mPenModel = PenModel.WaterPen;
     private int mPenWeight = 3;
     private int mPenColor = Color.BLACK;
+    private int mBgColor = Color.WHITE;
     private boolean mIsRubber = false;
     
-    private ArrayList<ShapeView> mShapeViews = new ArrayList<ShapeView>();
-    private ShapeModel mAddShape = ShapeModel.None;
-    private int mAddStartX = -1,mAddStartY = -1;
+    private ShapeModel mInsertShape = ShapeModel.None;
+    private CanvasShapeView mInsertShapeTmp;
+    private boolean mInsertShapeIsFill = false;
+    private int mInsertStartX = -1,mInsertStartY = -1;
+    private ArrayList<CanvasShapeView> mShapeList = new ArrayList<CanvasShapeView>();
+    private ArrayList<CanvasImageView> mImageList = new ArrayList<CanvasImageView>();
 
     private CanvasManageInterface mCanvasManageInterface;
 
@@ -75,7 +78,6 @@ public class PenCanvasView extends FrameLayout{
     }
     
     private void initCanvasInfo(){
-    	this.setLayoutParams(new LayoutParams(LayoutParams.MATCH_PARENT,LayoutParams.MATCH_PARENT));
     	
     	if(mCanvasManageInterface != null){
             this.mWidth = mCanvasManageInterface.getPenCanvasWidth();
@@ -88,6 +90,9 @@ public class PenCanvasView extends FrameLayout{
     }
 
     private void initObjects(){
+    	this.setLayoutParams(new LayoutParams(LayoutParams.MATCH_PARENT,LayoutParams.MATCH_PARENT));
+    	this.setBackgroundColor(mBgColor);
+    	
     	if(mBitmap != null && !mBitmap.isRecycled())mBitmap.recycle();
         mBitmap = Bitmap.createBitmap(mWidth, mHeight, Bitmap.Config.ARGB_8888); //设置位图的宽高
 
@@ -146,14 +151,69 @@ public class PenCanvasView extends FrameLayout{
         mPenPaint.setColor(mPenColor);
     }
 
+    /**
+     * 设置当前画笔是否是橡皮擦
+     * @param value
+     */
     public void setIsRubber(boolean value){
         mIsRubber = value;
     }
     
-    public void setAddShape(ShapeModel shape){
-    	this.mAddShape = shape;
+    /**
+     * 设置开始插入图形
+     * @param shape
+     * @param isFill
+     */
+    public void setInsertShape(ShapeModel shape,boolean isFill){
+    	if(shape == ShapeModel.None){
+    		stopInsertShape();
+    	}else{
+	    	this.mInsertShape = shape;
+	    	this.mInsertShapeIsFill = isFill;
+    	}
+    }
+    
+    /**
+     * 停止插图图形
+     */
+    public void stopInsertShape(){
+    	mInsertShape = ShapeModel.None;
+    	mInsertStartX = mInsertStartY = -1;
+		mInsertShapeTmp = null;
+    	mInsertShapeIsFill = false;
+    	mPenPaint.setStyle(Paint.Style.STROKE);
+    }
+    
+    /**
+     * 清除全部资源
+     */
+    public void cleanAll(){
+    	cleanContext();
+    	cleanAllShape();
+    	cleanAllImage();
+    }
+    
+    /**
+     * 清除画布上的所有图形
+     */
+    public void cleanAllShape(){
+    	for(int i = 0;i < mShapeList.size();i++){
+    		this.removeView(mShapeList.get(i));
+    	}
+    }
+    
+    /**
+     * 清除画布上的所有图片
+     */
+    public void cleanAllImage(){
+    	for(int i = 0;i < mImageList.size();i++){
+    		this.removeView(mImageList.get(i));
+    	}
     }
 
+    /**
+     * 清除笔迹内容
+     */
     public void cleanContext(){
         if(mBitmap != null && !mBitmap.isRecycled())mBitmap.recycle();
         mBitmap = Bitmap.createBitmap(mWidth, mHeight, Bitmap.Config.ARGB_8888);
@@ -192,21 +252,10 @@ public class PenCanvasView extends FrameLayout{
     public boolean onTouchEvent(MotionEvent event) {
         int x = (int)event.getX();
         int y = (int)event.getY();
-    	if(mAddShape != ShapeModel.None){
-    		if(mAddStartX < 0 && mAddStartY < 0){
-    			mAddStartX = x;
-    			mAddStartY = y;
-    			
-    			ShapeView view = new ShapeView(getContext(),mAddShape);
-    			view.setLeft(x);
-    			view.setTop(y);
-    			mShapeViews.add(view);
-    			this.addView(view);
-    		}else{
-    			mShapeViews.get(mShapeViews.size() - 1).setSize(x - mAddStartX, y - mAddStartY);
-    		}
+        boolean isRoute = (event.getAction()==MotionEvent.ACTION_MOVE || event.getAction()==MotionEvent.ACTION_DOWN);
+    	if(mInsertShape != ShapeModel.None){
+    		insertShape(x,y,isRoute);
     	}else{
-            boolean isRoute = (event.getAction()==MotionEvent.ACTION_MOVE || event.getAction()==MotionEvent.ACTION_DOWN);
             drawLine(x,y,isRoute);
     	}
         return true;
@@ -264,6 +313,42 @@ public class PenCanvasView extends FrameLayout{
         }
 
         invalidate();
+    }
+    
+    /**
+     * 插入图形
+     * @param x
+     * @param y
+     * @param isRoute
+     */
+    private void insertShape(int x, int y, boolean isRoute){
+    	if(isRoute){
+			if(mInsertStartX < 0 && mInsertStartY < 0){
+				mInsertStartX = x;
+				mInsertStartY = y;
+				
+				CanvasShapeView view = new CanvasShapeView(getContext(),mInsertShape);
+				view.setDrawSize(getWidth(), getHeight());
+				view.setIsFill(mInsertShapeIsFill);
+				view.setPaint(mPenPaint);
+				this.addView(view);
+				this.mShapeList.add(view);
+				
+				mInsertShapeTmp = view;
+			}else{
+				if(mInsertShapeTmp != null)
+					mInsertShapeTmp.setSize(mInsertStartX,mInsertStartY,x, y);
+			}
+		}else if(mInsertStartX > 0 && mInsertStartY > 0){
+			mInsertStartX = mInsertStartY = -1;
+			mInsertShapeTmp = null;
+		}
+    }
+    
+    public void insertImage(Bitmap bitmap){
+    	CanvasImageView view = new CanvasImageView(getContext(),bitmap);
+		this.addView(view);
+		this.mImageList.add(view);
     }
 
     /**
