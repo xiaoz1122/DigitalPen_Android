@@ -78,6 +78,8 @@ public abstract class PenService extends Service{
 	
 	/**发送笔状态**/
 	abstract public void sendFixedPointState(LocationState state);
+	
+	abstract public void handlerPointInfo(PointObject point);
 
 	/**
 	 * 扫描设备
@@ -156,6 +158,22 @@ public abstract class PenService extends Service{
 			Intent intent = new Intent(Keys.ACTION_SERVICE_BLE_CONNECT_STATE);
 			intent.putExtra(Keys.KEY_DEVICE_ADDRESS, address);
 			intent.putExtra(Keys.KEY_CONNECT_STATE, state.getValue());
+			sendBroadcast(intent);
+		}
+	}
+	
+	/**
+	 * 发送笔的点坐标
+	 * @param point
+	 */
+	public void sendPointInfo(PointObject point){
+		if(onPointChangeListener != null)
+			onPointChangeListener.change(point);
+		
+		if(isBroadcast){
+			//发送笔迹JSON格式广播包
+			Intent intent = new Intent(Keys.ACTION_SERVICE_SEND_POINT);
+			intent.putExtra(Keys.KEY_PEN_POINT, point.toJsonString());
 			sendBroadcast(intent);
 		}
 	}
@@ -261,7 +279,7 @@ public abstract class PenService extends Service{
 				}else{
 					item.setSceneType(mScenePointObject.getSceneType());
 				}
-				sendPointInfo(item);
+				handlerPointInfo(item);
 				//Log.v(TAG, "out point:"+item.toString());
 				addFixedPoint(item);
 				
@@ -272,26 +290,6 @@ public abstract class PenService extends Service{
 			handlerFixedPointInfo(item);
 		}
 	}
-	
-	
-	/**
-	 * 发送笔信息
-	 * @param point
-	 */
-	public void sendPointInfo(PointObject point){
-
-		if(onPointChangeListener != null)
-			onPointChangeListener.change(point);
-		
-		if(isBroadcast){
-			//发送笔迹JSON格式广播包
-			Intent intent = new Intent(Keys.ACTION_SERVICE_SEND_POINT);
-			intent.putExtra(Keys.KEY_PEN_POINT, point.toJsonString());
-			sendBroadcast(intent);
-		}
-	}
-	
-
 	
 	/**
 	 * 添加固定点记录

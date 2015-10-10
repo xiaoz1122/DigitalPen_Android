@@ -467,6 +467,8 @@ public class PenInfo extends Activity{
 			mWindowX.setText(String.valueOf(windowX));
 			mWindowY.setText(String.valueOf(windowY));
 			
+			if(mShowType != 1)return;
+			
 			//绘制笔
 			mPenView.bitmapX = windowX;
 			mPenView.bitmapY = windowY;

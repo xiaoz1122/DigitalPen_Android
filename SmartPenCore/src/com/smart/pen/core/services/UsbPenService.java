@@ -149,6 +149,12 @@ public class UsbPenService extends PenService{
 		if(onFixedPointListener != null)
 			onFixedPointListener.location(mFirstPointObject, mSecondPointObject, state);
 	}
+
+	@Override
+	public void handlerPointInfo(PointObject point) {
+		//USB过来的不是异步数据，所以不需要Handler send处理
+		sendPointInfo(point);
+	}
 	
 	public void startReadData(){
 		if(!isReadData)

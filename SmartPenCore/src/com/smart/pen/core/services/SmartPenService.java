@@ -18,9 +18,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.SharedPreferences;
-import android.os.Binder;
 import android.os.Handler;
-import android.os.IBinder;
 import android.os.Message;
 import android.util.Log;
 
@@ -41,6 +39,7 @@ import com.smart.pen.core.utils.BlePenUtil;
  * @date 2015年6月11日 上午11:46:19
  *
  */
+@SuppressLint("NewApi")
 public class SmartPenService extends PenService{
 	public static final String TAG = SmartPenService.class.getSimpleName();
 	
@@ -66,8 +65,6 @@ public class SmartPenService extends PenService{
 	/**缓存扫描设备**/
 	private HashMap<String,DeviceObject> mBufferDevices = new HashMap<String,DeviceObject>();
 	private ScanDeviceCallback mScanDeviceCallback = new ScanDeviceCallback();
-	
-	private List<PointObject> currPointList = null;
 	
 	@Override
 	public void onCreate() {
@@ -110,10 +107,15 @@ public class SmartPenService extends PenService{
 
 	@Override
 	public void sendFixedPointState(LocationState state) {
-		// TODO Auto-generated method stub
-
 		Message msg = Message.obtain(mHandler, Keys.MSG_OUT_FIXED_INFO);
 		msg.obj = state;
+		msg.sendToTarget();
+	}
+
+	@Override
+	public void handlerPointInfo(PointObject point) {
+		Message msg = Message.obtain(mHandler, Keys.MSG_OUT_POINT);
+		msg.obj = point;
 		msg.sendToTarget();
 	}
 	
@@ -369,9 +371,9 @@ public class SmartPenService extends PenService{
 				sendConnectState((String)msg.obj,ConnectState.SERVICES_FAIL);
 				break;
 			case Keys.MSG_OUT_POINT:
-				handlerPointList(currPointList);
-				currPointList.clear();
-				currPointList = null;
+				if(msg.obj != null){
+					sendPointInfo((PointObject)msg.obj);
+				}
 				break;
 			case Keys.MSG_OUT_FIXED_INFO:
 				if(onFixedPointListener != null)
@@ -516,10 +518,8 @@ public class SmartPenService extends PenService{
 //			Log.v(TAG, "onCharacteristicWrite value: " + readData);
 			
 			DeviceObject device = mBufferDevices.get(gatt.getDevice().getAddress());
-			currPointList = BlePenUtil.getPointList(device,characteristic.getValue());
-			
-			Message msg = Message.obtain(mHandler, Keys.MSG_OUT_POINT);
-			msg.sendToTarget();
+			List<PointObject> pointList = BlePenUtil.getPointList(device,characteristic.getValue());
+			handlerPointList(pointList);
 		}
 	}
 	
