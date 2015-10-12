@@ -1,7 +1,5 @@
 package com.smart.pen.core.utils;
 
-import com.smart.pen.core.model.FrameSizeObject;
-
 import android.content.Context;
 
 /**

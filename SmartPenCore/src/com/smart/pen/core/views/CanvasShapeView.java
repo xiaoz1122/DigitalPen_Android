@@ -48,6 +48,14 @@ public class CanvasShapeView extends View {
 
         canvas.drawBitmap(mBitmap, 0, 0, null);
     }
+
+    /**
+     * 释放资源
+     */
+    public void release(){
+    	if(mBitmap != null && !mBitmap.isRecycled())mBitmap.recycle();
+    	mBitmap = null;
+    }
     
     /**
      * 设置绘制区域

@@ -113,6 +113,15 @@ public class CanvasImageView extends View {
     	return 0;
     }
     
+    /**
+     * 释放资源
+     */
+    public void release(){
+    	if(mBitmap != null && !mBitmap.isRecycled())mBitmap.recycle();
+    	mBitmap = null;
+    	mBitmapData = null;
+    }
+    
     /**  
      *  计算两个手指间的距离
      *  @param event

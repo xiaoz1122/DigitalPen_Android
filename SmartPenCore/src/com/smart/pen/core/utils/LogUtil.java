@@ -1,13 +1,12 @@
 package com.smart.pen.core.utils;
 
 import java.io.BufferedWriter;
-import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.Writer;
 import java.text.SimpleDateFormat;
 import java.util.Date;
-
+import android.annotation.SuppressLint;
 import android.os.Environment;
 
 /**
@@ -18,6 +17,7 @@ import android.os.Environment;
  * Description
  */
 public class LogUtil {
+	@SuppressLint("SimpleDateFormat")
 	private static SimpleDateFormat mTimeformat = new SimpleDateFormat("yyyyMMddHHmmss");
     private static Writer mWriter;
 

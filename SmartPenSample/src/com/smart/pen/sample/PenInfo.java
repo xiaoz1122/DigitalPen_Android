@@ -39,6 +39,7 @@ import com.smart.pen.core.symbol.Keys;
 import com.smart.pen.core.symbol.SceneType;
 import com.smart.pen.core.utils.SystemUtil;
 import com.smart.pen.core.views.PenCanvasView;
+import com.smart.pen.core.views.PenCanvasView.PenModel;
 
 /**
  * 笔信息显示
@@ -274,6 +275,7 @@ public class PenInfo extends Activity{
 		RelativeLayout.LayoutParams params = new RelativeLayout.LayoutParams(sizeObj.windowWidth, sizeObj.windowHeight);
 		params.setMargins(sizeObj.windowLeft, sizeObj.windowTop, 0, 0);
 		mLineWindow.setLayoutParams(params);
+		mPenCanvasView.setPenModel(PenModel.WaterPen);
 		mPenCanvasView.setSize(sizeObj.windowWidth, sizeObj.windowHeight);
 	}
 	

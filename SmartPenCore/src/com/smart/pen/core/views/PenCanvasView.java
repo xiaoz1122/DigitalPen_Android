@@ -37,7 +37,7 @@ public class PenCanvasView extends FrameLayout{
     private Canvas mCanvas;//画布
     private Bitmap mBitmap;//位图
 
-    private PenModel mPenModel = PenModel.WaterPen;
+    private PenModel mPenModel = PenModel.None;
     private int mPenWeight = 3;
     private int mPenColor = Color.BLACK;
     private int mBgColor = Color.WHITE;
@@ -80,6 +80,7 @@ public class PenCanvasView extends FrameLayout{
     private void initCanvasInfo(){
     	
     	if(mCanvasManageInterface != null){
+    		this.mPenModel = mCanvasManageInterface.getPenModel();
             this.mWidth = mCanvasManageInterface.getPenCanvasWidth();
             this.mHeight = mCanvasManageInterface.getPenCanvasHeight();
             this.mPenWeight = mCanvasManageInterface.getPenWeight();
