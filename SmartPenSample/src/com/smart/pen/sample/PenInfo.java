@@ -38,6 +38,8 @@ import com.smart.pen.core.symbol.ConnectState;
 import com.smart.pen.core.symbol.Keys;
 import com.smart.pen.core.symbol.SceneType;
 import com.smart.pen.core.utils.SystemUtil;
+import com.smart.pen.core.views.PenCanvasView;
+import com.smart.pen.core.views.PenCanvasView.PenModel;
 
 /**
  * 笔信息显示
@@ -57,8 +59,6 @@ public class PenInfo extends Activity{
 	private int mShowType = 0;
 	private Button mXYBut;
 	private Button mLineBut;
-	private Button mTestBut1;
-	private Button mTestBut2;
 
 	private LinearLayout mXYFrame;
 	private RelativeLayout mLineFrame;
@@ -84,8 +84,8 @@ public class PenInfo extends Activity{
 	private TextView mWindowX;
 	private TextView mWindowY;
 	
-	/** 画布的自定义view **/
-	private RrawingBoard mRrawingBoard;
+	/** 笔画布 **/
+	private PenCanvasView mPenCanvasView;
 	
 	//笔视图
 	private PenView mPenView;
@@ -115,13 +115,10 @@ public class PenInfo extends Activity{
 		mXYBut = (Button) findViewById(R.id.xyBut);
 		mLineBut = (Button) findViewById(R.id.lineBut);
 		
-		mTestBut1 = (Button) findViewById(R.id.testBut1);
-		mTestBut2 = (Button) findViewById(R.id.testBut2);
-		
 		mXYFrame = (LinearLayout) findViewById(R.id.xyFrame);
 		mLineFrame = (RelativeLayout) findViewById(R.id.lineFrame);
 		mLineWindow = (FrameLayout) findViewById(R.id.lineWindow);
-		mRrawingBoard = (RrawingBoard) findViewById(R.id.rwb);
+		mPenCanvasView = (PenCanvasView) findViewById(R.id.penCanvasView);
 		
 		mOriginalX = (TextView) findViewById(R.id.originalX);
 		mOriginalY = (TextView) findViewById(R.id.originalY);
@@ -153,20 +150,6 @@ public class PenInfo extends Activity{
 			public void onClick(View v) {
 				mShowType = 1;
 				initPage();
-			}
-		});
-		
-		mTestBut1.setOnClickListener(new OnClickListener(){
-			@Override
-			public void onClick(View v) {
-
-			}
-		});
-		mTestBut2.setOnClickListener(new OnClickListener(){
-			@Override
-			public void onClick(View v) {
-
-				
 			}
 		});
 		
@@ -292,7 +275,8 @@ public class PenInfo extends Activity{
 		RelativeLayout.LayoutParams params = new RelativeLayout.LayoutParams(sizeObj.windowWidth, sizeObj.windowHeight);
 		params.setMargins(sizeObj.windowLeft, sizeObj.windowTop, 0, 0);
 		mLineWindow.setLayoutParams(params);
-		mRrawingBoard.setSize(sizeObj.windowWidth, sizeObj.windowHeight);
+		mPenCanvasView.setPenModel(PenModel.WaterPen);
+		mPenCanvasView.setSize(sizeObj.windowWidth, sizeObj.windowHeight);
 	}
 	
 	/**
@@ -479,8 +463,8 @@ public class PenInfo extends Activity{
 			}
 			
 			//获取显示窗口比例缩放坐标
-			int windowX = point.getSceneX(mRrawingBoard.getWindowWidth());
-			int windowY = point.getSceneY(mRrawingBoard.getWindowHeight());
+			int windowX = point.getSceneX(mPenCanvasView.getWindowWidth());
+			int windowY = point.getSceneY(mPenCanvasView.getWindowHeight());
 			
 			mWindowX.setText(String.valueOf(windowX));
 			mWindowY.setText(String.valueOf(windowY));
@@ -494,7 +478,7 @@ public class PenInfo extends Activity{
 			mPenView.invalidate();
 			
 			//绘制笔迹
-			mRrawingBoard.draw(windowX, windowY, point.isRoute);
+			mPenCanvasView.drawLine(windowX, windowY, point.isRoute);
 		}
 	};
 }
