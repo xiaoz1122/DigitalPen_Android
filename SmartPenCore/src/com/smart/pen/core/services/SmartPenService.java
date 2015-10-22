@@ -233,7 +233,7 @@ public class SmartPenService extends PenService{
 			mReadyNumber--;
 			readPenData();
 		}else{
-			Message msg = Message.obtain(mHandler, Keys.MSG_PEN_INIT_COMPLETE);
+			Message msg = Message.obtain(mHandler, Keys.MSG_PEN_READY);
 			msg.sendToTarget();
 		}
 	}
@@ -339,11 +339,8 @@ public class SmartPenService extends PenService{
 				//保存连接设备
 				saveLastDevice(address);
 				
-				//清除BLE数据缓存
-				BlePenUtil.clearDataBuffer();
-				
-				//开始初始化笔数据
-				startInitPenData();
+				//设置广播
+				setCharacteristicNotification(mPenDataCharacteristic,true);
 				break;
 			case Keys.MSG_PEN_INIT_COMPLETE:
 				sendConnectState((String)msg.obj,ConnectState.PEN_INIT_COMPLETE);
@@ -366,6 +363,12 @@ public class SmartPenService extends PenService{
 				break;
 			case Keys.MSG_SERVICES_READY:
 				sendConnectState((String)msg.obj,ConnectState.SERVICES_READY);
+
+				//清除BLE数据缓存
+				BlePenUtil.clearDataBuffer();
+				
+				//开始初始化笔数据
+				startInitPenData();
 				break;
 			case Keys.MSG_SERVICES_FAIL:
 				sendConnectState((String)msg.obj,ConnectState.SERVICES_FAIL);
@@ -467,7 +470,9 @@ public class SmartPenService extends PenService{
 				
 				BluetoothGattService service = mBluetoothGatt.getService(SERVICE_UUID);
 				mPenDataCharacteristic = service.getCharacteristic(PEN_DATA_UUID);
-				setCharacteristicNotification(mPenDataCharacteristic,true);
+				//setCharacteristicNotification(mPenDataCharacteristic,true);
+				
+				
 			}else{
 				msg = Message.obtain(mHandler, Keys.MSG_SERVICES_FAIL);
 			}
@@ -482,7 +487,7 @@ public class SmartPenService extends PenService{
 			Log.v(TAG, "onDescriptorWrite status:"+status);
 			Message msg;
 			if (status == BluetoothGatt.GATT_SUCCESS){
-				msg = Message.obtain(mHandler, Keys.MSG_PEN_READY);
+				msg = Message.obtain(mHandler, Keys.MSG_PEN_INIT_COMPLETE);
 				
 				try {
 					Thread.sleep(100);
