@@ -2,7 +2,7 @@ package com.smart.pen.core.views;
 
 import java.util.ArrayList;
 
-import com.smart.pen.core.views.CanvasShapeView.ShapeModel;
+import com.smart.pen.core.views.ShapeView.ShapeModel;
 
 import android.annotation.SuppressLint;
 import android.content.Context;
@@ -34,21 +34,22 @@ public class PenCanvasView extends FrameLayout{
     private Path mPath;
     private Paint mPenPaint;//声明画笔
     private Paint mErasePaint;//声明橡皮
+    private DrawView mDrawView;
     private Canvas mCanvas;//画布
-    private Bitmap mBitmap;//位图
 
     private PenModel mPenModel = PenModel.None;
     private int mPenWeight = 3;
     private int mPenColor = Color.BLACK;
     private int mBgColor = Color.WHITE;
     private boolean mIsRubber = false;
+    private boolean mIsEditPhoto = false;
     
     private ShapeModel mInsertShape = ShapeModel.None;
-    private CanvasShapeView mInsertShapeTmp;
+    private ShapeView mInsertShapeTmp;
     private boolean mInsertShapeIsFill = false;
     private int mInsertStartX = -1,mInsertStartY = -1;
-    private ArrayList<CanvasShapeView> mShapeList = new ArrayList<CanvasShapeView>();
-    private ArrayList<CanvasImageView> mImageList = new ArrayList<CanvasImageView>();
+    private ArrayList<ShapeView> mShapeList = new ArrayList<ShapeView>();
+    private ArrayList<PhotoView> mPhotoList = new ArrayList<PhotoView>();
 
     private CanvasManageInterface mCanvasManageInterface;
 
@@ -91,11 +92,9 @@ public class PenCanvasView extends FrameLayout{
     }
 
     private void initObjects(){
+    	this.removeAllViews();
     	this.setLayoutParams(new LayoutParams(LayoutParams.MATCH_PARENT,LayoutParams.MATCH_PARENT));
     	this.setBackgroundColor(mBgColor);
-    	
-    	if(mBitmap != null && !mBitmap.isRecycled())mBitmap.recycle();
-        mBitmap = Bitmap.createBitmap(mWidth, mHeight, Bitmap.Config.ARGB_8888); //设置位图的宽高
 
         mPath = new Path();
 
@@ -113,9 +112,31 @@ public class PenCanvasView extends FrameLayout{
         mErasePaint.setStrokeWidth(mPenWeight);  
         mErasePaint.setAlpha(0);     
         mErasePaint.setXfermode(new PorterDuffXfermode(Mode.DST_IN)); 
+        
+        if(mDrawView == null){
+            mDrawView = new DrawView(getContext());
+        }
+        mDrawView.init(mWidth, mHeight);
+        this.addView(mDrawView);
 
         mCanvas = new Canvas();
-        mCanvas.setBitmap(mBitmap);
+        mCanvas.setBitmap(mDrawView.getBitmap());
+    }
+    
+    /**
+     * 获取插入的图片数量
+     * @return
+     */
+    public int getPhotoCount(){
+    	return mPhotoList.size();
+    }
+    
+    /**
+     * 获取插入的图形数量
+     * @return
+     */
+    public int getShapeCount(){
+    	return mShapeList.size();
     }
 
     /**
@@ -186,40 +207,55 @@ public class PenCanvasView extends FrameLayout{
     }
     
     /**
+     * 设置编辑图片状态
+     */
+    public void setPhotoEditState(boolean isEdit){
+    	mIsEditPhoto = isEdit;
+    	for(int i = 0;i<mPhotoList.size();i++){
+    		mPhotoList.get(i).isEdit = isEdit;
+    	}
+    }
+    
+    /**
      * 清除全部资源
      */
     public void cleanAll(){
-    	cleanContext();
+    	cleanAllDraw();
     	cleanAllShape();
-    	cleanAllImage();
+    	cleanAllPhoto();
     }
     
     /**
      * 清除画布上的所有图形
      */
     public void cleanAllShape(){
+    	ShapeView view;
     	for(int i = 0;i < mShapeList.size();i++){
-    		this.removeView(mShapeList.get(i));
+    		view = mShapeList.get(i);
+    		this.removeView(view);
+    		view.release();
     	}
     }
     
     /**
      * 清除画布上的所有图片
      */
-    public void cleanAllImage(){
-    	for(int i = 0;i < mImageList.size();i++){
-    		this.removeView(mImageList.get(i));
+    public void cleanAllPhoto(){
+    	PhotoView view;
+    	for(int i = 0;i < mPhotoList.size();i++){
+    		view = mPhotoList.get(i);
+    		this.removeView(view);
+    		view.release();
     	}
     }
 
     /**
      * 清除笔迹内容
      */
-    public void cleanContext(){
-        if(mBitmap != null && !mBitmap.isRecycled())mBitmap.recycle();
-        mBitmap = Bitmap.createBitmap(mWidth, mHeight, Bitmap.Config.ARGB_8888);
-        mCanvas.setBitmap(mBitmap);
-        invalidate();
+    public void cleanAllDraw(){
+    	mDrawView.init(mWidth, mHeight);
+    	mDrawView.invalidate();
+        mCanvas.setBitmap(mDrawView.getBitmap());
     }
 
     /**
@@ -243,14 +279,14 @@ public class PenCanvasView extends FrameLayout{
     @Override
     protected void onDraw(Canvas canvas) {
         super.onDraw(canvas);
-
-        canvas.drawBitmap(mBitmap, 0, 0, null);
     }
     
     //触摸事件
     @SuppressLint("ClickableViewAccessibility")
 	@Override
     public boolean onTouchEvent(MotionEvent event) {
+    	if(mIsEditPhoto)return false;
+    	
         int x = (int)event.getX();
         int y = (int)event.getY();
         boolean isRoute = (event.getAction()==MotionEvent.ACTION_MOVE || event.getAction()==MotionEvent.ACTION_DOWN);
@@ -313,7 +349,7 @@ public class PenCanvasView extends FrameLayout{
             mLastY = 0;
         }
 
-        invalidate();
+    	mDrawView.invalidate();
     }
     
     /**
@@ -328,11 +364,11 @@ public class PenCanvasView extends FrameLayout{
 				mInsertStartX = x;
 				mInsertStartY = y;
 				
-				CanvasShapeView view = new CanvasShapeView(getContext(),mInsertShape);
+				ShapeView view = new ShapeView(getContext(),mInsertShape);
 				view.setDrawSize(getWidth(), getHeight());
 				view.setIsFill(mInsertShapeIsFill);
 				view.setPaint(mPenPaint);
-				this.addView(view);
+				this.addView(view,mPhotoList.size());
 				this.mShapeList.add(view);
 				
 				mInsertShapeTmp = view;
@@ -346,10 +382,12 @@ public class PenCanvasView extends FrameLayout{
 		}
     }
     
-    public void insertImage(Bitmap bitmap){
-    	CanvasImageView view = new CanvasImageView(getContext(),bitmap);
-		this.addView(view);
-		this.mImageList.add(view);
+    public void insertPhoto(Bitmap bitmap){
+    	mIsEditPhoto = true;
+    	PhotoView view = new PhotoView(getContext(),bitmap);
+		this.addView(view,0);
+		mDrawView.bringToFront();
+		this.mPhotoList.add(view);
     }
 
     /**
@@ -378,7 +416,7 @@ public class PenCanvasView extends FrameLayout{
     	PenModel getPenModel();
     	
         /**
-         * 获取笔的粗细
+         * 获取笔的粗细,建议以3为起始值
          * @return
          */
         int getPenWeight();

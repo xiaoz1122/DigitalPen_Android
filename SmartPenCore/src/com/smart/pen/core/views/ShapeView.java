@@ -19,7 +19,7 @@ import android.view.View;
  *
  * Description
  */
-public class CanvasShapeView extends View {
+public class ShapeView extends View {
 
     private ShapeModel mMode = ShapeModel.None;
     private Paint mErasePaint;
@@ -29,7 +29,7 @@ public class CanvasShapeView extends View {
 
     private boolean mIsFill = false;
 
-    public CanvasShapeView(Context context,ShapeModel model){
+    public ShapeView(Context context,ShapeModel model){
         super(context);
         this.mMode = model;
         this.mCanvas = new Canvas();
@@ -45,7 +45,8 @@ public class CanvasShapeView extends View {
     @Override
     public void onDraw(Canvas canvas) {
         super.onDraw(canvas);
-
+        if(mBitmap == null)return;
+        
         canvas.drawBitmap(mBitmap, 0, 0, null);
     }
 

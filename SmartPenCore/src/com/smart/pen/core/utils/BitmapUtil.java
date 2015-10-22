@@ -3,11 +3,15 @@ package com.smart.pen.core.utils;
 import java.io.BufferedInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.FileNotFoundException;
+import java.io.IOException;
 
 import android.content.Context;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.graphics.Canvas;
 import android.graphics.Matrix;
+import android.graphics.Paint;
+import android.media.ExifInterface;
 import android.net.Uri;
 
 /**
@@ -121,6 +125,37 @@ public class BitmapUtil {
 	}
 	
 	/**
+	 * 调整图片角度
+	 * @param bm
+	 * @param orientationDegree
+	 * @return
+	 */
+	public static Bitmap adjustBitmapRotation(Bitmap bm, int rotate){
+
+		Matrix m = new Matrix();
+		m.setRotate(rotate);
+		float targetX, targetY;
+		if (rotate == -90) {
+			targetX = 0;
+			targetY = bm.getWidth();
+		}else if (rotate == 90) {
+			targetX = bm.getHeight();
+			targetY = 0;
+		} else {
+			targetX = bm.getHeight();
+			targetY = bm.getWidth();
+		}
+	    m.postTranslate(targetX, targetY);
+
+	    Bitmap bm1 = Bitmap.createBitmap(bm.getHeight(), bm.getWidth(), Bitmap.Config.ARGB_8888);
+	    Paint paint = new Paint();
+	    Canvas canvas = new Canvas(bm1);
+	    canvas.drawBitmap(bm, m, paint);
+
+	    return bm1;
+	}
+	
+	/**
 	 * bitmap转Bytes
 	 * @param bm
 	 * @return
@@ -130,4 +165,40 @@ public class BitmapUtil {
         bm.compress(Bitmap.CompressFormat.JPEG, quality, baos);
         return baos.toByteArray();
     }
+	
+	/**
+	 * 获取角度
+	 * @param filepath
+	 * @return
+	 */
+	public static int getExifOrientation(String filepath) {
+       int degree = 0;
+       ExifInterface exif = null;
+       try {
+           exif = new ExifInterface(filepath);
+       } catch (IOException ex) {
+          // MmsLog.e(ISMS_TAG, "getExifOrientation():", ex);
+       }
+
+       if (exif != null) {
+           int orientation = exif.getAttributeInt(ExifInterface.TAG_ORIENTATION, -1);
+           if (orientation != -1) {
+               // We only recognize a subset of orientation tag values.
+               switch (orientation) {
+               case ExifInterface.ORIENTATION_ROTATE_90:
+                   degree = 90;
+                   break;
+               case ExifInterface.ORIENTATION_ROTATE_180:
+                   degree = 180;
+                   break;
+               case ExifInterface.ORIENTATION_ROTATE_270:
+                   degree = 270;
+                   break;
+               default:
+                   break;
+               }
+           }
+       }
+       return degree;
+   }
 }

@@ -60,7 +60,6 @@ public class UsbPenService extends PenService{
 		registerReceiver(mUsbStateReceiver, intentFilter);
 		
 		setScanTime(5000);
-		scanDevice(null);
 	}
 	
 	@Override
@@ -75,6 +74,7 @@ public class UsbPenService extends PenService{
 		ConnectState result = ConnectState.NOTHING;
 		mUsbManager = (UsbManager) getSystemService(Context.USB_SERVICE);
 		for(UsbDevice device :mUsbManager.getDeviceList().values()){
+			
 			if(device.getVendorId() == 3616 && device.getProductId() == 257){
 				currUsbDevice = device;
 				break;
@@ -197,6 +197,7 @@ public class UsbPenService extends PenService{
         protected void onPostExecute(ConnectState result) {
         	isScanning = false;
 			sendConnectState(null,result);
+			
 			if(result == ConnectState.CONNECTED){
 				startReadData();
 			}else if(result == ConnectState.CONNECT_FAIL_PERMISSION){

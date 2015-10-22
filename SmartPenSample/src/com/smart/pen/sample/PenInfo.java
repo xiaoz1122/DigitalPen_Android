@@ -275,7 +275,7 @@ public class PenInfo extends Activity{
 		RelativeLayout.LayoutParams params = new RelativeLayout.LayoutParams(sizeObj.windowWidth, sizeObj.windowHeight);
 		params.setMargins(sizeObj.windowLeft, sizeObj.windowTop, 0, 0);
 		mLineWindow.setLayoutParams(params);
-		mPenCanvasView.setPenModel(PenModel.WaterPen);
+		mPenCanvasView.setPenModel(PenModel.Pen);
 		mPenCanvasView.setSize(sizeObj.windowWidth, sizeObj.windowHeight);
 	}
 	

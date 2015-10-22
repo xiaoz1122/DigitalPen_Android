@@ -83,6 +83,11 @@ public class Keys {
 	public static final String KEY_DEVICE_NAME = "device_name";
 	public static final String KEY_CONNECT_STATE = "connect_state";
 	public static final String KEY_VALUE = "value";
+	
+	/**录制设置**/
+    public static final String RECORD_SETTING_KEY = "SMART_PEN_RECORD_SETTING_KEY";
+    /**录制级别**/
+    public static final String RECORD_LEVEL_KEY = "RECORD_LEVEL_KEY";
 
 	/**默认场景**/
 	public static final String DEFAULT_SETTING_KEY = "SMART_PEN_DEFAULT_SETTING_KEY";

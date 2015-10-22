@@ -18,7 +18,7 @@ import android.view.View;
  *
  * Description
  */
-public class CanvasImageView extends View {
+public class PhotoView extends View {
     private Bitmap mBitmap;
     private int mX,mY,mDownX,mDownY;
     private int mStartX = 0;
@@ -27,12 +27,15 @@ public class CanvasImageView extends View {
     private int mStartWidth,mStartHeight;
     private byte[] mBitmapData;
     
+    /**是否编辑状态**/
+    public boolean isEdit = true;
+    
     /**
      * 按下点的数量
      */
     private int mDownPointNum = 0;
     
-    public CanvasImageView(Context context,Bitmap bitmap){
+    public PhotoView(Context context,Bitmap bitmap){
         super(context);
         
         this.mBitmap = bitmap;
@@ -50,6 +53,8 @@ public class CanvasImageView extends View {
     @SuppressLint("ClickableViewAccessibility")
 	@Override
     public boolean onTouchEvent (MotionEvent event) {
+    	if(!isEdit)return false;
+    	
     	int action = event.getActionMasked();
         int x = (int) event.getX();
         int y = (int) event.getY();
@@ -84,6 +89,8 @@ public class CanvasImageView extends View {
         	mDownPointNum--;
         	if(mDownPointNum < 2){
         		mStartDis = -1;
+        		mDownX = x;
+            	mDownY = y;
         		resetImage();
         	}
         	break;
@@ -112,13 +119,20 @@ public class CanvasImageView extends View {
     	}
     	return 0;
     }
+
+    /**
+     * 释放Bitmap
+     */
+    public void releaseBitmap(){
+    	if(mBitmap != null && !mBitmap.isRecycled())mBitmap.recycle();
+    	mBitmap = null;
+    }
     
     /**
      * 释放资源
      */
     public void release(){
-    	if(mBitmap != null && !mBitmap.isRecycled())mBitmap.recycle();
-    	mBitmap = null;
+    	releaseBitmap();
     	mBitmapData = null;
     }
     
