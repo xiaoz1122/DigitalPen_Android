@@ -4,6 +4,7 @@ import com.smart.pen.core.services.PenService;
 import com.smart.pen.core.services.SmartPenService;
 import com.smart.pen.core.services.UsbPenService;
 import com.smart.pen.core.symbol.Keys;
+import com.smart.pen.core.symbol.RecordLevel;
 
 import android.app.ActivityManager;
 import android.app.Application;
@@ -12,6 +13,7 @@ import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.content.ServiceConnection;
+import android.content.SharedPreferences;
 import android.os.IBinder;
 import android.util.Log;
 
@@ -24,6 +26,25 @@ import android.util.Log;
  */
 public class PenApplication extends Application{
 	private static final String TAG = PenApplication.class.getSimpleName();
+	
+	/**
+     * 获取录制级别
+     * @return
+     */
+    public RecordLevel getRecordLevel(){
+        SharedPreferences preferences = this.getSharedPreferences(Keys.RECORD_SETTING_KEY, Context.MODE_PRIVATE);
+        RecordLevel type = RecordLevel.toRecordLevel(preferences.getInt(Keys.RECORD_LEVEL_KEY, RecordLevel.MEDIUM.getValue()));
+        return type;
+    }
+
+    public boolean setRecordLevel(RecordLevel value){
+        SharedPreferences preferences = this.getSharedPreferences(Keys.RECORD_SETTING_KEY, Context.MODE_PRIVATE);
+        SharedPreferences.Editor editor = preferences.edit();
+        editor.putInt(Keys.RECORD_LEVEL_KEY, value.getValue());
+        boolean result = editor.commit();
+
+        return result;
+    }
 	
 	/**
      * 获取笔服务
@@ -55,6 +76,7 @@ public class PenApplication extends Application{
 				public void onServiceConnected(ComponentName className,
 						IBinder rawBinder) {
 					mPenService = ((PenService.LocalBinder) rawBinder).getService();
+					Log.v(TAG, "onServiceConnected:"+mPenService.getSvrTag());
 				}
 		
 				public void onServiceDisconnected(ComponentName classname) {
@@ -73,7 +95,7 @@ public class PenApplication extends Application{
 		startService(getPenServiceIntent(svrName));
 	}
 	/**停止后台服务**/
-	protected void stopPenService(String svrName){
+	public void stopPenService(String svrName){
 		Log.v(TAG, "stopPenService");
 		stopService(getPenServiceIntent(svrName));
 	}
@@ -85,8 +107,9 @@ public class PenApplication extends Application{
 			this.startPenService(svrName);
 		}
 		if(!isBindPenService){
+			mPenService = null;
 			isBindPenService = bindService(getPenServiceIntent(svrName), getPenServiceConnection(), Context.BIND_AUTO_CREATE);
-			Log.v(TAG, "bindService");
+			Log.v(TAG, "bindService "+svrName);
 		}
 	}
 	/**解除绑定后台服务**/
@@ -95,6 +118,7 @@ public class PenApplication extends Application{
 			if(mPenServiceConnection != null){
 				Log.v(TAG, "unBindPenService");
 				unbindService(mPenServiceConnection);
+				mPenServiceIntent = null;
 			}
 			isBindPenService = false;
 		}

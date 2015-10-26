@@ -305,9 +305,12 @@ public class PenCanvasView extends FrameLayout{
      * @param isRoute 是否在写
      */
     public void drawLine(int x, int y, boolean isRoute){
+		if(mCanvasManageInterface != null)mCanvasManageInterface.penRouteStatus(isRoute);
+		
         Paint point = mIsRubber?mErasePaint:mPenPaint;
         //是否准备写 笔尖是否接触
         if(isRoute){
+        	
             //是否是move
             if(mLastX != 0 && mLastY != 0){
             	double speed = Math.sqrt(Math.pow(mLastX-x,2) + Math.pow(mLastY-y,2));
@@ -444,5 +447,11 @@ public class PenCanvasView extends FrameLayout{
          * @return
          */
         boolean getIsRubber();
+        
+        /**
+         * 输出绘画状态
+         * @param isDraw
+         */
+        void penRouteStatus(boolean isRoute);
     }
 }
