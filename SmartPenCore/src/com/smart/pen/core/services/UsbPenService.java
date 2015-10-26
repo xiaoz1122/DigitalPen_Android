@@ -70,6 +70,11 @@ public class UsbPenService extends PenService{
 	}
 
 	@Override
+	public String getSvrTag() {
+		return Keys.APP_USB_SERVICE_NAME;
+	}
+
+	@Override
 	public ConnectState checkDeviceConnect(){
 		ConnectState result = ConnectState.NOTHING;
 		mUsbManager = (UsbManager) getSystemService(Context.USB_SERVICE);
@@ -232,7 +237,7 @@ public class UsbPenService extends PenService{
 						result = ConnectState.CONNECT_FAIL;
 						break;
 					}
-											
+									
 					usbRequest.setClientData(UsbPenService.this);
 					boolean isrequest = usbRequest.queue(buffer, inmax);
 					if(isrequest){

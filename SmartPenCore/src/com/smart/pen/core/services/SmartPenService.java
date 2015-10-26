@@ -87,6 +87,11 @@ public class SmartPenService extends PenService{
 	}
 
 	@Override
+	public String getSvrTag() {
+		return Keys.APP_PEN_SERVICE_NAME;
+	}
+	
+	@Override
 	public ConnectState checkDeviceConnect() {
 		ConnectState result = ConnectState.NOTHING;
 		if(mBluetoothGatt != null){

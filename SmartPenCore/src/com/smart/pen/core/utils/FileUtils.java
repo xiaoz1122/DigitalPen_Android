@@ -3,7 +3,8 @@ package com.smart.pen.core.utils;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
-
+import java.text.SimpleDateFormat;
+import android.annotation.SuppressLint;
 import android.graphics.Bitmap;
 
 /**
@@ -23,6 +24,17 @@ public class FileUtils {
         File file = new File(dirPath);
         file.mkdirs();
         return file.isDirectory();
+    }
+
+    public static String getDateFormatName(){
+        return getDateFormatName("yyyyMMddHHmmss");
+    }
+    
+    @SuppressLint("SimpleDateFormat")
+	public static String getDateFormatName(String pattern){
+        SimpleDateFormat date = new SimpleDateFormat(pattern);
+        String filename = String.valueOf(date.format(System.currentTimeMillis()));
+        return filename;
     }
 	
 	/**
