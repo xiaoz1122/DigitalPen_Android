@@ -5,6 +5,7 @@ import java.nio.ByteOrder;
 import java.util.List;
 
 import com.smart.pen.core.common.Listeners.OnScanDeviceListener;
+import com.smart.pen.core.model.DeviceObject;
 import com.smart.pen.core.model.PointObject;
 import com.smart.pen.core.symbol.ConnectState;
 import com.smart.pen.core.symbol.Keys;
@@ -72,6 +73,15 @@ public class UsbPenService extends PenService{
 	@Override
 	public String getSvrTag() {
 		return Keys.APP_USB_SERVICE_NAME;
+	}
+
+	@Override
+	public DeviceObject getConnectDevice() {
+		if(currUsbDevice != null){
+			DeviceObject device = new DeviceObject(currUsbDevice);
+			return device;
+		}
+		return null;
 	}
 
 	@Override

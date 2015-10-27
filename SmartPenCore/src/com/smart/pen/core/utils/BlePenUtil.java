@@ -2,9 +2,8 @@ package com.smart.pen.core.utils;
 
 import java.util.ArrayList;
 import java.util.List;
-
+import android.annotation.SuppressLint;
 import android.bluetooth.BluetoothGattCharacteristic;
-
 import com.smart.pen.core.model.DeviceObject;
 import com.smart.pen.core.model.PointObject;
 import com.smart.pen.core.symbol.BatteryState;
@@ -21,6 +20,7 @@ public class BlePenUtil extends PenDataUtil{
 	public static final String TAG = BlePenUtil.class.getSimpleName();
 	
 	/**获取Characteristic返回的值**/
+	@SuppressLint("NewApi")
 	public static String getCharacteristicValue(BluetoothGattCharacteristic characteristic){
 		final byte[] data = characteristic.getValue();
 		if (data != null && data.length > 0) {
@@ -192,9 +192,11 @@ public class BlePenUtil extends PenDataUtil{
 		int num = 0;
 		for(int i = 0;i < length - PEN_DATA_VALID_LENGTH;i++){
 			for(int n = 0;n < checkNum;n++){
-				byte b1 = data.get(i + PEN_DATA_VALID_LENGTH * n);
-				byte b2 = data.get(i + 1 + PEN_DATA_VALID_LENGTH * n);
-				if(isPenData(b1,b2))num++;
+				if(data.size() > i + PEN_DATA_VALID_LENGTH * n){
+					byte b1 = data.get(i + PEN_DATA_VALID_LENGTH * n);
+					byte b2 = data.get(i + 1 + PEN_DATA_VALID_LENGTH * n);
+					if(isPenData(b1,b2))num++;
+				}
 			}
 			if(num >= checkNum){
 				index = i;

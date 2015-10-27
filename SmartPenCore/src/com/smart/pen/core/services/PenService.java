@@ -7,6 +7,7 @@ import com.smart.pen.core.common.Listeners.OnConnectStateListener;
 import com.smart.pen.core.common.Listeners.OnFixedPointListener;
 import com.smart.pen.core.common.Listeners.OnPointChangeListener;
 import com.smart.pen.core.common.Listeners.OnScanDeviceListener;
+import com.smart.pen.core.model.DeviceObject;
 import com.smart.pen.core.model.PointObject;
 import com.smart.pen.core.symbol.ConnectState;
 import com.smart.pen.core.symbol.Keys;
@@ -77,6 +78,9 @@ public abstract class PenService extends Service{
 	
 	/**获取服务标记**/
 	abstract public String getSvrTag();
+	
+	/**获取当前连接设备名称**/
+	abstract public DeviceObject getConnectDevice();
 	
 	/**检查设备连接状态**/
 	abstract public ConnectState checkDeviceConnect();
@@ -169,8 +173,9 @@ public abstract class PenService extends Service{
 	 * @param state
 	 */
 	public void sendConnectState(String address,ConnectState state){
-		if(onConnectStateListener != null)
+		if(onConnectStateListener != null){
 			onConnectStateListener.stateChange(address,state);
+		}
 		
 		if(isBroadcast){
 			Intent intent = new Intent(Keys.ACTION_SERVICE_BLE_CONNECT_STATE);

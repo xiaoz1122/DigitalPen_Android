@@ -11,29 +11,32 @@ public class Keys {
 	/**笔连接完成，可以开始操作**/
 	public static final int MSG_PEN_READY = 1000;
 	
-	/**笔初始化完成**/
-	public static final int MSG_PEN_INIT_COMPLETE = 1010;
-	
 	/**发现设备**/
 	public static final int MSG_DISCOVERY_DEVICE = 1001;
 	
 	/**扫描完成**/
 	public static final int MSG_DISCOVERY_END = 1002;
 	
+	/**正在连接**/
+	public static final int MSG_CONNECTING = 1003;
+	
 	/**连接成功**/
-	public static final int MSG_CONNECTED = 1003;
+	public static final int MSG_CONNECTED = 1004;
 	
 	/**断开成功**/
-	public static final int MSG_DISCONNECTED = 1004;
+	public static final int MSG_DISCONNECTED = 1005;
 	
 	/**服务发现完成**/
-	public static final int MSG_SERVICES_READY = 1005;
+	public static final int MSG_SERVICES_READY = 1006;
 	
 	/**服务发现失败**/
-	public static final int MSG_SERVICES_FAIL = 1006;
+	public static final int MSG_SERVICES_FAIL = 1007;
 	
 	/**连接发生错误**/
-	public static final int MSG_CONNECT_FAIL = 1007;
+	public static final int MSG_CONNECT_FAIL = 1008;
+	
+	/**笔初始化完成**/
+	public static final int MSG_PEN_INIT_COMPLETE = 1010;
 	
 	/**输出笔坐标集合**/
 	public static final int MSG_OUT_POINT = 1020;
@@ -104,4 +107,11 @@ public class Keys {
 	public static final String DEFAULT_SCENE_OFFSET_Y_KEY = "DEFAULT_SCENE_OFFSET_Y_KEY";
 	/**最后一次连接上的设备**/
 	public static final String DEFAULT_LAST_DEVICE_KEY = "DEFAULT_LAST_DEVICE_KEY";
+	
+	/**储存是否自动发现设备**/
+	public static final String DEFAULT_AUTO_FIND_DEVICE_KEY = "DEFAULT_AUTO_FIND_DEVICE_KEY";
+	/**储存自动发现扫描时间**/
+	public static final String DEFAULT_AUTO_FIND_SCAN_KEY = "DEFAULT_AUTO_FIND_SCAN_KEY";
+	/**储存自动发现间隔**/
+	public static final String DEFAULT_AUTO_FIND_GAP_KEY = "DEFAULT_AUTO_FIND_GAP_KEY";
 }

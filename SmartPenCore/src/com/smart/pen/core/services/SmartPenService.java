@@ -2,7 +2,11 @@ package com.smart.pen.core.services;
 
 import java.util.HashMap;
 import java.util.List;
+import java.util.TimerTask;
 import java.util.UUID;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 
 import android.annotation.SuppressLint;
 import android.bluetooth.BluetoothAdapter;
@@ -18,12 +22,14 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.SharedPreferences;
+import android.os.Build;
 import android.os.Handler;
 import android.os.Message;
 import android.util.Log;
 
 import com.smart.pen.core.common.Listeners.OnConnectStateListener;
 import com.smart.pen.core.common.Listeners.OnScanDeviceListener;
+import com.smart.pen.core.model.AutoFindConfig;
 import com.smart.pen.core.model.DeviceObject;
 import com.smart.pen.core.model.PointObject;
 import com.smart.pen.core.symbol.ConnectState;
@@ -60,16 +66,25 @@ public class SmartPenService extends PenService{
 	private BluetoothDevice mBluetoothDevice;
 	private BluetoothGatt mBluetoothGatt;
 	private BluetoothGattCharacteristic mPenDataCharacteristic;
-	private BluetoothGattCallback mBluetoothGattCallback = new DeviceGattCallback();
+	private BluetoothGattCallback mBluetoothGattCallback;
+
+	private long mLastFindTime;
+	/**自动发现设备线程**/
+    private ScheduledExecutorService mTimerThreadExecutor;
 	
 	/**缓存扫描设备**/
 	private HashMap<String,DeviceObject> mBufferDevices = new HashMap<String,DeviceObject>();
-	private ScanDeviceCallback mScanDeviceCallback = new ScanDeviceCallback();
+	private ScanDeviceCallback mScanDeviceCallback;
 	
 	@Override
 	public void onCreate() {
 		super.onCreate();
-
+        Log.v(TAG, "onCreate");
+        
+        if(Build.VERSION.SDK_INT < Build.VERSION_CODES.JELLY_BEAN_MR2)return;
+        
+        mBluetoothGattCallback = new DeviceGattCallback();
+        mScanDeviceCallback = new ScanDeviceCallback();
 		mPenServiceReceiver = new PenServiceReceiver();
 		IntentFilter intentFilter = new IntentFilter();
 		intentFilter.addAction(Keys.ACTION_SERVICE_SETTING_SEND_RECEIVER);
@@ -78,6 +93,8 @@ public class SmartPenService extends PenService{
 		intentFilter.addAction(Keys.ACTION_SERVICE_BLE_CONNECT);
 		intentFilter.addAction(Keys.ACTION_SERVICE_BLE_DISCONNECT);
 		registerReceiver(mPenServiceReceiver, intentFilter);
+		
+		initFindTimerThread();
 	}
 	
 	@Override
@@ -89,6 +106,14 @@ public class SmartPenService extends PenService{
 	@Override
 	public String getSvrTag() {
 		return Keys.APP_PEN_SERVICE_NAME;
+	}
+
+	@Override
+	public DeviceObject getConnectDevice() {
+		if(checkDeviceConnect() == ConnectState.CONNECTED){
+			return mBufferDevices.get(mBluetoothGatt.getDevice().getAddress());
+		}
+		return null;
 	}
 	
 	@Override
@@ -144,6 +169,32 @@ public class SmartPenService extends PenService{
 		if(isBluetoothAdapterNormal())
 			return mBluetoothAdapter.isEnabled();
 		return false;
+	}
+
+	/**
+	 * 获取是否自动发现
+	 * @return
+	 */
+	public AutoFindConfig getAutoFindConfig(){
+		AutoFindConfig result = new AutoFindConfig();
+		SharedPreferences preferences = this.getSharedPreferences(Keys.DEFAULT_SETTING_KEY, Context.MODE_PRIVATE);
+		result.isAutoFind = preferences.getBoolean(Keys.DEFAULT_AUTO_FIND_DEVICE_KEY, false);
+		result.scanTime = preferences.getInt(Keys.DEFAULT_AUTO_FIND_SCAN_KEY, 0);
+		result.gapTime = preferences.getInt(Keys.DEFAULT_AUTO_FIND_GAP_KEY, 0);
+		return result;
+	}
+	
+	/**
+	 * 设置是否自动发现设备
+	 * @param value
+	 */
+	public void setAutoFindConfig(AutoFindConfig config){
+		SharedPreferences preferences = this.getSharedPreferences(Keys.DEFAULT_SETTING_KEY, Context.MODE_PRIVATE);
+		SharedPreferences.Editor editor = preferences.edit();
+		editor.putBoolean(Keys.DEFAULT_AUTO_FIND_DEVICE_KEY, config.isAutoFind);
+		editor.putInt(Keys.DEFAULT_AUTO_FIND_SCAN_KEY, config.scanTime);
+		editor.putInt(Keys.DEFAULT_AUTO_FIND_GAP_KEY, config.gapTime);
+		editor.commit();
 	}
 	
 	/**
@@ -208,6 +259,15 @@ public class SmartPenService extends PenService{
 	}
 	
 	/**
+	 * 获取搜索缓存中的设备
+	 * @param address
+	 * @return
+	 */
+	public DeviceObject getBufferDevice(String address){
+		return mBufferDevices.get(address);
+	}
+	
+	/**
 	 * 连接设备
 	 * @param listener
 	 * @param address
@@ -215,12 +275,28 @@ public class SmartPenService extends PenService{
 	 */
 	public ConnectState connectDevice(OnConnectStateListener listener,String address){
 		this.onConnectStateListener = listener;
+		return connectDevice(address);
+	}
+	
+	/**
+	 * 连接设备
+	 * @param address
+	 * @return
+	 */
+	public ConnectState connectDevice(String address){
+		Log.v(TAG, "connectDevice:"+address);
 		if(mBufferDevices.containsKey(address)){
 			mReadyNumber = INIT_READ_DATA_NUM;
 			mBluetoothDevice = mBluetoothAdapter.getRemoteDevice(address);
 			if(mBluetoothDevice != null && !mBluetoothDevice.getAddress().isEmpty()){
 				this.closeBluetoothGatt();
 				this.mBluetoothGatt = mBluetoothDevice.connectGatt(SmartPenService.this, false, mBluetoothGattCallback);
+				
+				//发送正在连接消息
+				Message msg = Message.obtain(mHandler, Keys.MSG_CONNECTING);
+				msg.obj = address;
+				msg.sendToTarget();
+				
 				return ConnectState.CONNECTING;
 			}else{
 				return ConnectState.CONNECT_FAIL;
@@ -331,6 +407,50 @@ public class SmartPenService extends PenService{
 			sendBroadcast(intent);
 		}
 	}
+	
+	/**
+	 * 初始自动查找定时器
+	 * @param gap 查找间隔，单位毫秒
+	 */
+	public void initFindTimerThread(){
+		//检查是否需要开启自动查找
+		AutoFindConfig config = getAutoFindConfig();
+		if(!config.isAutoFind){
+			if(mTimerThreadExecutor != null)mTimerThreadExecutor.shutdownNow();
+			return;
+		}
+
+		long currTime = System.currentTimeMillis();
+		//如果计时器正在执行
+		if(currTime - mLastFindTime < config.gapTime){
+			return;
+		}
+		
+		if(mTimerThreadExecutor != null)mTimerThreadExecutor.shutdownNow();
+		
+		if(mTimerThreadExecutor == null || mTimerThreadExecutor.isShutdown())
+            mTimerThreadExecutor = Executors.newScheduledThreadPool(1);
+		
+		mTimerThreadExecutor.scheduleAtFixedRate(new FindTimerTask(config.scanTime), 0, config.gapTime, TimeUnit.MILLISECONDS);
+	}
+	
+	/**
+	 * 是否自动连接设备处理
+	 * @param address
+	 */
+	private void isAutoConnectDeviceHandler(String address){
+		//检查是否需要自动链接
+		AutoFindConfig config = getAutoFindConfig();
+		if(config.isAutoFind){
+			String lastAddress = getLastDevice();
+			if(address.equals(lastAddress)){
+				//停止扫描
+				stopScanDevice();
+				//连接匹配设备
+				connectDevice(address);
+			}
+		}
+	}
 
 	@SuppressLint("HandlerLeak")
 	private Handler mHandler = new Handler(){
@@ -341,21 +461,25 @@ public class SmartPenService extends PenService{
 				String address = (String)msg.obj;
 				sendConnectState(address,ConnectState.PEN_READY);
 				
-				//保存连接设备
-				saveLastDevice(address);
-				
 				//设置广播
 				setCharacteristicNotification(mPenDataCharacteristic,true);
 				break;
 			case Keys.MSG_PEN_INIT_COMPLETE:
 				sendConnectState((String)msg.obj,ConnectState.PEN_INIT_COMPLETE);
+				//保存连接设备
+				saveLastDevice((String)msg.obj);
 				break;
 			case Keys.MSG_DISCOVERY_DEVICE:
+				String findAddress = (String)msg.obj;
 				//发送发现的新设备
-				sendDiscoveryDevice(mBufferDevices.get((String)msg.obj));
+				sendDiscoveryDevice(mBufferDevices.get(findAddress));
+				isAutoConnectDeviceHandler(findAddress);
 				break;
 			case Keys.MSG_DISCOVERY_END:
 				stopScanDevice();
+				break;
+			case Keys.MSG_CONNECTING:
+				sendConnectState((String)msg.obj,ConnectState.CONNECTING);
 				break;
 			case Keys.MSG_CONNECTED:
 				sendConnectState((String)msg.obj,ConnectState.CONNECTED);
@@ -393,6 +517,30 @@ public class SmartPenService extends PenService{
 			}
 		}
 	};
+	
+	/**
+	 * 查找设备定时器任务
+	 */
+	private class FindTimerTask extends TimerTask{
+		private int scanTime;
+		public FindTimerTask(int scanTime){
+			this.scanTime = scanTime;
+		}
+		@Override
+		public void run() {
+        	Log.v(TAG, "FindTimerTask run");
+			mLastFindTime = System.currentTimeMillis();
+        	
+        	//检查是否已连接
+        	if(getConnectDevice() != null)return;
+        	
+        	if(isScanning)return;
+        	
+        	//扫描设备
+        	setScanTime(scanTime);
+        	scanDevice(null);
+		}
+	}
 	
 	private class PenServiceReceiver extends BroadcastReceiver {
 		@Override
