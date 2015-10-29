@@ -1,15 +1,10 @@
 package com.smart.pen.core.views;
 
-import android.annotation.SuppressLint;
 import android.content.Context;
-import android.graphics.Bitmap;
 import android.graphics.Canvas;
-import android.graphics.Color;
 import android.graphics.Paint;
-import android.graphics.PorterDuff.Mode;
-import android.graphics.PorterDuffXfermode;
-import android.graphics.drawable.Drawable;
-import android.os.Build;
+import android.graphics.Path;
+import android.graphics.Rect;
 import android.view.View;
 
 /**
@@ -22,51 +17,34 @@ import android.view.View;
 public class ShapeView extends View {
 
     private ShapeModel mMode = ShapeModel.None;
-    private Paint mErasePaint;
+	private Path mPath = new Path();
+	private Rect mRect = new Rect();
     private Paint mPaint;
-    private Bitmap mBitmap;
-    private Canvas mCanvas;
 
     private boolean mIsFill = false;
 
     public ShapeView(Context context,ShapeModel model){
         super(context);
         this.mMode = model;
-        this.mCanvas = new Canvas();
-       
-        mErasePaint = new Paint();
-        mErasePaint.setStyle(Paint.Style.FILL);
-        mErasePaint.setColor(Color.TRANSPARENT);
-        mErasePaint.setStrokeWidth(1);  
-        mErasePaint.setAlpha(0);     
-        mErasePaint.setXfermode(new PorterDuffXfermode(Mode.DST_IN)); 
     }
 
     @Override
     public void onDraw(Canvas canvas) {
         super.onDraw(canvas);
-        if(mBitmap == null)return;
         
-        canvas.drawBitmap(mBitmap, 0, 0, null);
-    }
-
-    /**
-     * 释放资源
-     */
-    public void release(){
-    	if(mBitmap != null && !mBitmap.isRecycled())mBitmap.recycle();
-    	mBitmap = null;
-    }
-    
-    /**
-     * 设置绘制区域
-     * @param w
-     * @param h
-     */
-    public void setDrawSize(int w,int h){
-    	recycleBitmap();
-        mBitmap = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888);
-        mCanvas.setBitmap(mBitmap);
+        if(mPaint != null){
+        	switch(mMode){
+        	case Line:
+        		canvas.drawPath(mPath, mPaint);
+        		break;
+        	case Rect:
+        		canvas.drawRect(mRect, mPaint);
+        		break;
+        	case Circle:
+        		canvas.drawPath(mPath, mPaint);
+        		return;
+        	}
+        }
     }
     
     public void setIsFill(boolean isFill){
@@ -77,6 +55,14 @@ public class ShapeView extends View {
         this.mPaint = point;
         mPaint.setStyle(mIsFill? Paint.Style.FILL: Paint.Style.STROKE);
     }
+    
+    /**
+     * 释放资源
+     */
+    public void release(){
+    	mPath.reset();
+    	mMode = ShapeModel.None;
+    }
 
     /**
      * 设置图形大小
@@ -84,17 +70,12 @@ public class ShapeView extends View {
      * @param h
      */
     public void setSize(int l,int t,int r,int b){
-    	clearView();
     	int left,top,right,bottom;
     	if(mMode == ShapeModel.Line){
     		left = l;
     		top = t;
     		right = r;
-    		if(b > t){
-    			bottom = b;
-    		}else{
-    			bottom = t;
-    		}
+    		bottom = b;
     	}else{
         	if(r > l){
         		left = l;
@@ -116,12 +97,14 @@ public class ShapeView extends View {
     }
     
     private void initShape(int left,int top,int right,int bottom){
+		mPath.reset();
     	switch (mMode){
     	case Line:
-    		mCanvas.drawLine(left,top,right,bottom,mPaint);
+    		mPath.moveTo(left,top); 
+    		mPath.lineTo(right, bottom);
     		break;
 		case Rect:
-			mCanvas.drawRect(left,top,right,bottom,mPaint);
+			mRect.set(left, top, right, bottom);
      		break;
 		case Circle:
 			drawCircle(left,top,right,bottom);
@@ -136,33 +119,12 @@ public class ShapeView extends View {
     	int w = right - left;
     	int h = bottom - top;
         if(w > h){
-            mCanvas.drawCircle(left,top,h / 2,mPaint);
+        	mPath.addCircle(left,top,h / 2, Path.Direction.CW);
         }else{
-            mCanvas.drawCircle(left,top,w / 2,mPaint);
+        	mPath.addCircle(left,top,w / 2, Path.Direction.CW);
         }
     }
     
-    private void clearView(){
-    	if(mBitmap != null){
-    		mCanvas.drawRect(0,0,mBitmap.getWidth(),mBitmap.getHeight(),mErasePaint);
-    	}
-    }
-    
-    private void recycleBitmap(){
-        if(mBitmap != null && !mBitmap.isRecycled())mBitmap.recycle();
-        mBitmap = null;
-    }
-    
-	@SuppressLint("NewApi")
-	@SuppressWarnings("deprecation")
-	private void setViewBackground(Drawable drawable){
-    	if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN){
-    		this.setBackground(drawable);
-    	}else{
-    		this.setBackgroundDrawable(drawable);
-    	}
-    }
-
     public enum ShapeModel {
         None,
         Line,

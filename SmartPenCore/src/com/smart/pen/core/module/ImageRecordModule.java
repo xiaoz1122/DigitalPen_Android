@@ -4,6 +4,7 @@ import android.graphics.Bitmap;
 import android.media.AudioFormat;
 import android.media.AudioRecord;
 import android.media.MediaRecorder;
+import android.os.AsyncTask;
 import android.os.Handler;
 import android.os.Message;
 import android.util.Log;
@@ -14,7 +15,6 @@ import com.smart.pen.core.utils.FFMergePictureUtils;
 import com.smart.pen.core.utils.FileUtils;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.TimerTask;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -29,8 +29,7 @@ import java.util.concurrent.TimeUnit;
 public class ImageRecordModule {
     public static final String TAG = ImageRecordModule.class.getSimpleName();
 
-    private static final int MSG_RECORD_SECONDS = 1002;
-    private static final int MSG_RECORD_STOP = 1003;
+    private static final int MSG_RECORD_SECONDS = 1001;
 
     private static final int AUDIO_SOURCE = MediaRecorder.AudioSource.MIC;
 
@@ -49,9 +48,6 @@ public class ImageRecordModule {
     /**计时器计数**/
     private int mTimerNum = 0;
 
-    /**当前录制帧数**/
-    private int mRecordFrameNum = 0;
-
     private RecordLevel mRecordLevel = RecordLevel.MEDIUM;
 
     private int mVideoWidth,mVideoHeight;
@@ -62,9 +58,6 @@ public class ImageRecordModule {
     /**计时线程**/
     private ScheduledExecutorService mTimerThreadExecutor;
 
-    /**录制线程**/
-    private  ExecutorService mRecordThreadExecutor;
-
     /**缓存线程**/
     private ExecutorService mCacheThreadExecutor;
 
@@ -72,7 +65,7 @@ public class ImageRecordModule {
     private FFMergePictureUtils mFFMergePictureUtils;
 
     private ArrayList<byte[]> mAudioBuffer = new ArrayList<byte[]>();
-    private HashMap<Integer,byte[]> mImageBuffer = new HashMap<Integer,byte[]>();
+    private ArrayList<byte[]> mImageBuffer = new ArrayList<byte[]>();
 
     /**是否是横屏**/
     private boolean isLandscape;
@@ -88,13 +81,9 @@ public class ImageRecordModule {
         mAudioBuffer.clear();
         mImageBuffer.clear();
         isPause = false;
-        mRecordFrameNum = 0;
 
         if(mTimerThreadExecutor == null || mTimerThreadExecutor.isShutdown())
-            mTimerThreadExecutor = Executors.newScheduledThreadPool(10);
-
-        if(mRecordThreadExecutor == null || mRecordThreadExecutor.isShutdown())
-            mRecordThreadExecutor = Executors.newSingleThreadExecutor();
+            mTimerThreadExecutor = Executors.newScheduledThreadPool(3);
 
         if(mCacheThreadExecutor == null || mCacheThreadExecutor.isShutdown())
             mCacheThreadExecutor = Executors.newFixedThreadPool(3);
@@ -110,7 +99,7 @@ public class ImageRecordModule {
     private void initAudioRecord() {
         int bufferSize = AudioRecord.getMinBufferSize(AUDIO_RATE_HZ, AUDIO_CHANNEL, AUDIO_FORMAT);
         Log.v(TAG, "initAudioRecord minbuffer size:" + bufferSize);
-
+        
         mAudioRecord = new AudioRecord(
                 AUDIO_SOURCE,
                 AUDIO_RATE_HZ,
@@ -210,8 +199,13 @@ public class ImageRecordModule {
             isRecording = true;
             //开启获取声音数据线程
             new Thread(new GetAudioRunnable()).start();
+            
+            //运行计时器
             int gap = 1000 / getFrameRate();
             mTimerThreadExecutor.scheduleAtFixedRate(mRecordTimerTask, 0, gap, TimeUnit.MILLISECONDS);
+            
+            //开始合并视频线程
+            new MergeVideoTask().executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
             return true;
         }
         return false;
@@ -224,7 +218,6 @@ public class ImageRecordModule {
         isRecording = false;
         isPause = false;
         mTimerThreadExecutor.shutdownNow();
-        mHandler.sendEmptyMessage(MSG_RECORD_STOP);
     }
 
     /**
@@ -265,17 +258,10 @@ public class ImageRecordModule {
     }
 
     private void stopRecordHandler(){
-        if(!mRecordThreadExecutor.isShutdown()) {
-            mRecordThreadExecutor.shutdown();
+        if(!mCacheThreadExecutor.isShutdown()) {
             mCacheThreadExecutor.shutdown();
         }
 
-        if(!mRecordThreadExecutor.isTerminated()){
-            int progress = (int)(((float)mRecordFrameNum / (float)mTimerNum) * 100);
-            mGetImageInterface.videoCodeState(progress);
-            mHandler.sendEmptyMessageDelayed(MSG_RECORD_STOP,100);
-            return;
-        }
         mFFMergePictureUtils.end();
         mTimerNum = 0;
         mAudioBuffer.clear();
@@ -285,11 +271,9 @@ public class ImageRecordModule {
     }
 
     private class WriteCacheRunnable implements Runnable{
-        private int index;
         private Bitmap bitmap;
 
-        public WriteCacheRunnable(int index,Bitmap bitmap){
-            this.index = index;
+        public WriteCacheRunnable(Bitmap bitmap){
             this.bitmap = bitmap;
         }
 
@@ -301,7 +285,7 @@ public class ImageRecordModule {
                 //裁剪图片
                 bitmap = BitmapUtil.zoomBitmap(bitmap, getVideoWidth(), getVideoHeight());
                 byte[] data = BitmapUtil.bitmap2Bytes(bitmap,60);
-                mImageBuffer.put(index, data);
+                mImageBuffer.add(data);
 
                 if(!bitmap.isRecycled())bitmap.recycle();
 
@@ -311,67 +295,84 @@ public class ImageRecordModule {
         }
     }
 
-    private class WriteImageRunnable implements Runnable {
-        private int CHECK_NUM_MAX = 100;
-        private int checkNum = 0;
-        private int index;
-        public WriteImageRunnable(int index){
-            this.index = index;
-        }
-
+    private class MergeVideoTask extends AsyncTask<Void, Integer, Integer>{
+    	private byte[] tmp = null;
         @Override
-        public void run() {
+        protected Integer doInBackground(Void... params) {
+            int progress = 0;
 
-            //检查缓存是否有数据,等待1秒
-            while (!mImageBuffer.containsKey(index)){
-                checkNum++;
-
-                if(checkNum >= CHECK_NUM_MAX)
-                    break;
-
-                try {
-                    Thread.sleep(10);
-                } catch (Exception e) {
-                    e.printStackTrace();
-                }
-            }
-            checkNum = 0;
-
-            if(mImageBuffer.containsKey(index)) {
-                byte[] data = mImageBuffer.remove(index);
-                mFFMergePictureUtils.appendImage(data, data.length);
-                data = null;
-            }
-
-            //记录当前录制了多少帧
-            mRecordFrameNum = index;
-
-            Log.v(TAG,"WriteImage index:"+index);
+            while (isRecording || mAudioBuffer.size() > 0 || mImageBuffer.size() > 0) {
+				if(mFFMergePictureUtils.getTimeDifference() <= 0){
+					if(mImageBuffer.size() > 0){
+						byte[] data = mImageBuffer.remove(0);
+		                mFFMergePictureUtils.appendImage(data, data.length);
+		                data = null;
+		                
+		                if(!isRecording){//录制结束后发送当前进度
+			                progress = (int)(((float)(mTimerNum - mImageBuffer.size()) / mTimerNum) * 100);
+			                if(progress < 100)publishProgress(progress);
+		                }
+		                		
+					}else if(!isRecording){
+						//如果不是录制状态，而且图片数据也没了，那么丢掉剩余音频数据
+						mAudioBuffer.clear();
+					}
+				}else{
+					if(mAudioBuffer.size() > 0){
+						byte[] audioData = new byte[GetAudioRunnable.BUFFER_LENGTH];
+						int len = 0;
+						//将audioData调整到2048长度后再发送，因为部分机型会无法一次读满buffer
+						while(len < GetAudioRunnable.BUFFER_LENGTH){
+							if(mAudioBuffer.size() == 0){
+								tmp = null;
+								break;
+							}
+							if(tmp != null){
+								System.arraycopy(tmp, 0, audioData, 0, tmp.length);
+								len += tmp.length;
+								tmp = null;
+							}
+							
+							byte[] data = mAudioBuffer.remove(0);
+							int gap = GetAudioRunnable.BUFFER_LENGTH - (data.length + len);
+							if(gap >= 0){
+								System.arraycopy(data, 0, audioData, len, data.length);
+								len += data.length;
+							}else{
+								System.arraycopy(data, 0, audioData, len, data.length + gap);
+								len += data.length + gap;
+								tmp = new byte[Math.abs(gap)];
+								System.arraycopy(data, data.length + gap, tmp, 0, Math.abs(gap));
+							}
+						}
+		                mFFMergePictureUtils.appendAudio(audioData, audioData.length);
+		                audioData = null;
+					}else if(!isRecording){
+						//如果不是录制状态，而且音频数据也没了，那么丢掉剩余图像数据
+						mImageBuffer.clear();
+					}
+				}
+			}
+            Log.v(TAG, "MergeVideoTask end");
+            return progress;
         }
-    }
-
-    /**
-     * 写入音频任务
-     */
-    private class WriteAudioRunnable implements Runnable{
-        byte[] audioData;
-
-        public WriteAudioRunnable(byte[] data){
-            this.audioData = data;
-        }
-
         @Override
-        public void run() {
-            if(audioData != null) {
-                mFFMergePictureUtils.appendAudio(audioData, audioData.length);
-            }
+        protected void onProgressUpdate(Integer... progresses) {
+            mGetImageInterface.videoCodeState(progresses[0]);
+        }
+        @Override
+        protected void onPostExecute(Integer result) {
+        	stopRecordHandler();
         }
     }
 
     private class GetAudioRunnable implements Runnable{
+    	public static final int BUFFER_LENGTH = 2048;
         @Override
         public void run() {
-
+            byte[] data;
+            byte[] readData = new byte[BUFFER_LENGTH];
+  
             //开始录制音频
             mAudioRecord.startRecording();
             while (isRecording) {
@@ -389,8 +390,9 @@ public class ImageRecordModule {
                     continue;//如果视频还没开始录制，那么跳过
 
                 //获取音频数据
-                byte[] data = new byte[2048];
-                mAudioRecord.read(data, 0, 2048);
+                int len = mAudioRecord.read(readData, 0, BUFFER_LENGTH);
+                data = new byte[len];
+                System.arraycopy(readData, 0, data, 0, len);
                 mAudioBuffer.add(data);
             }
             //停止录音
@@ -414,16 +416,7 @@ public class ImageRecordModule {
 
             Log.v(TAG, "RecordTimerTask num:" + mTimerNum+",buffer size:"+mImageBuffer.size());
             try {
-                mCacheThreadExecutor.execute(new WriteCacheRunnable(mTimerNum, bmp));
-                mRecordThreadExecutor.execute(new WriteImageRunnable(mTimerNum));
-                //写入声音数据
-                int length = mAudioBuffer.size();
-
-                while (length > 0) {
-                    byte[] data = mAudioBuffer.remove(0);
-                    mRecordThreadExecutor.execute(new WriteAudioRunnable(data));
-                    length--;
-                }
+                mCacheThreadExecutor.execute(new WriteCacheRunnable(bmp));
             }catch (RejectedExecutionException e){
                 e.printStackTrace();
             }catch (NullPointerException e){
@@ -440,9 +433,6 @@ public class ImageRecordModule {
             switch (msg.what) {
                 case MSG_RECORD_SECONDS:
                     mGetImageInterface.recordTimeChange(msg.arg1);
-                    break;
-                case MSG_RECORD_STOP:
-                    stopRecordHandler();
                     break;
             }
         }

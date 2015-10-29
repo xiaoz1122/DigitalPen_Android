@@ -6,6 +6,7 @@ package com.smart.pen.core.utils;
 public class FFMergePictureUtils {
 
     public native void setVideoRate(int rate);
+    public native int getTimeDifference();
     public native int start(String out_file,int width,int height);
     public native int end();
     public native int appendImage(byte[] picData,int length);

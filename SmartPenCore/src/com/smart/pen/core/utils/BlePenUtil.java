@@ -2,8 +2,10 @@ package com.smart.pen.core.utils;
 
 import java.util.ArrayList;
 import java.util.List;
+
 import android.annotation.SuppressLint;
 import android.bluetooth.BluetoothGattCharacteristic;
+
 import com.smart.pen.core.model.DeviceObject;
 import com.smart.pen.core.model.PointObject;
 import com.smart.pen.core.symbol.BatteryState;
@@ -47,7 +49,7 @@ public class BlePenUtil extends PenDataUtil{
 			for(int i = 0;i < bleData.length;i++){
 				mDataBuffer.add(bleData[i]);
 			}
-			
+
 			byte[] penData = getValidPenData(mDataBuffer);
 			if(penData != null){
 				fillPointList(list,penData);
@@ -72,7 +74,6 @@ public class BlePenUtil extends PenDataUtil{
 				int residue = buffer.size() % PEN_DATA_VALID_LENGTH;
 				
 				result = new byte[buffer.size() - residue];
-				
 				while(buffer.size() > residue){
 					result[index] = buffer.remove(0);
 					index++;
@@ -131,9 +132,7 @@ public class BlePenUtil extends PenDataUtil{
 			}else{
 				int length = bleData[0];
 				result = new byte[length];
-				for(int i = 0;i < length;i++){
-					result[i] = bleData[i + 1];
-				}
+				System.arraycopy(bleData, 1, result, 0, length);
 			}
 		}else{
 			result = bleData;
@@ -192,9 +191,10 @@ public class BlePenUtil extends PenDataUtil{
 		int num = 0;
 		for(int i = 0;i < length - PEN_DATA_VALID_LENGTH;i++){
 			for(int n = 0;n < checkNum;n++){
-				if(data.size() > i + PEN_DATA_VALID_LENGTH * n){
-					byte b1 = data.get(i + PEN_DATA_VALID_LENGTH * n);
-					byte b2 = data.get(i + 1 + PEN_DATA_VALID_LENGTH * n);
+				int seek = i + PEN_DATA_VALID_LENGTH * n;
+				if(data.size() > seek + 1){
+					byte b1 = data.get(seek);
+					byte b2 = data.get(seek + 1);
 					if(isPenData(b1,b2))num++;
 				}
 			}
@@ -208,13 +208,10 @@ public class BlePenUtil extends PenDataUtil{
 		if(index >= 0){
 			result = true;
 			if(index > 0){
-				StringBuilder delValue = new StringBuilder();
 				int newLength = buffer.size() - index;
 				while(buffer.size() > newLength){
-					delValue.append(toHex(buffer.remove(0))+" ");
+					buffer.remove(0);
 				}
-				//Log.v(TAG, "Del PenData:"+delValue.toString());
-				//LogUtil.addLog("Del PenData:"+delValue.toString());
 			}
 		}
 		return result;
