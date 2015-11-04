@@ -1,6 +1,9 @@
 package com.smart.pen.core.model;
 
+import com.smart.pen.core.symbol.DeviceType;
+
 import android.bluetooth.BluetoothDevice;
+import android.hardware.usb.UsbDevice;
 
 /**
  * 设备对象
@@ -10,6 +13,8 @@ import android.bluetooth.BluetoothDevice;
  * Description
  */
 public class DeviceObject {
+	private DeviceType type = DeviceType.UNKNOWN;
+	
 	/**
 	 * 设备名字
 	 */
@@ -30,7 +35,16 @@ public class DeviceObject {
 	 */
 	public int verMinor;
 	
+	/**
+	 * 获取设备类型
+	 * @return
+	 */
+	public DeviceType getType(){
+		return type;
+	}
+	
 	public DeviceObject(BluetoothDevice device){
+		this.type = DeviceType.BLE;
 		this.name = device.getName();
 		this.address = device.getAddress();
 		
@@ -40,4 +54,10 @@ public class DeviceObject {
 			name = "Pen"+name.substring(name.length() - 6, name.length());
 		}
 	}
+
+	public DeviceObject(UsbDevice device){
+		this.type = DeviceType.USB;
+		this.name = device.getDeviceName();
+	}
+	
 }

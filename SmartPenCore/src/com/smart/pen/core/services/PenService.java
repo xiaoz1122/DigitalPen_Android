@@ -7,6 +7,7 @@ import com.smart.pen.core.common.Listeners.OnConnectStateListener;
 import com.smart.pen.core.common.Listeners.OnFixedPointListener;
 import com.smart.pen.core.common.Listeners.OnPointChangeListener;
 import com.smart.pen.core.common.Listeners.OnScanDeviceListener;
+import com.smart.pen.core.model.DeviceObject;
 import com.smart.pen.core.model.PointObject;
 import com.smart.pen.core.symbol.ConnectState;
 import com.smart.pen.core.symbol.Keys;
@@ -65,10 +66,21 @@ public abstract class PenService extends Service{
 	private final IBinder mBinder = new LocalBinder();
 	
 	/**
+	 * 标记是否被绑定
+	 */
+	private boolean isBind = false;
+	
+	/**
 	 * 判断定位第一个坐标按下状态<br />
 	 * 这个值用来防止程序判断完成第一个坐标定位后，立即进入第二个坐标判断
 	 * **/
 	protected boolean mFirstPointDown = false;
+	
+	/**获取服务标记**/
+	abstract public String getSvrTag();
+	
+	/**获取当前连接设备名称**/
+	abstract public DeviceObject getConnectDevice();
 	
 	/**检查设备连接状态**/
 	abstract public ConnectState checkDeviceConnect();
@@ -94,14 +106,24 @@ public abstract class PenService extends Service{
 
 	@Override
 	public IBinder onBind(Intent intent) {
-		// TODO Auto-generated method stub
+		Log.v(TAG, "onBind");
+		isBind = true;
 		return mBinder;
 	}
 	
 	@Override
 	public boolean onUnbind(Intent intent) {
 		Log.v(TAG, "onUnbind");
+		isBind = false;
 		return super.onUnbind(intent);
+	}
+	
+	/**
+	 * 获取是否被绑定
+	 * @return
+	 */
+	public boolean getIsBind(){
+		return isBind;
 	}
 	
 	/**
@@ -151,8 +173,9 @@ public abstract class PenService extends Service{
 	 * @param state
 	 */
 	public void sendConnectState(String address,ConnectState state){
-		if(onConnectStateListener != null)
+		if(onConnectStateListener != null){
 			onConnectStateListener.stateChange(address,state);
+		}
 		
 		if(isBroadcast){
 			Intent intent = new Intent(Keys.ACTION_SERVICE_BLE_CONNECT_STATE);

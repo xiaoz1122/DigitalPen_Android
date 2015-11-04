@@ -61,12 +61,19 @@ public class FrameSizeObject {
 			windowWidth = frameWidth;
 			windowHeight = (int)((float)sceneHeight * ((float)frameWidth / (float)sceneWidth));
 			
-			windowLeft = 0;
-			windowTop = (frameHeight - windowHeight) / 2;
+			if(windowHeight > frameHeight){
+				windowWidth = (int)((float)windowWidth * ((float)frameHeight / (float)windowHeight));
+				windowHeight =  frameHeight;
+
+				windowTop = 0;
+				windowLeft = (frameWidth - windowWidth) / 2;
+			}else{
+				windowLeft = 0;
+				windowTop = (frameHeight - windowHeight) / 2;
+			}
 		}else{
 			windowHeight = frameHeight;
 			windowWidth = (int)((float)sceneWidth * ((float)windowHeight / (float)sceneHeight));
-			
 			
 			if(windowWidth > frameWidth){
 				windowHeight = (int)((float)windowHeight * ((float)frameWidth / (float)windowWidth));

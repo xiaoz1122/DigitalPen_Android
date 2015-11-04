@@ -38,8 +38,8 @@ import com.smart.pen.core.symbol.ConnectState;
 import com.smart.pen.core.symbol.Keys;
 import com.smart.pen.core.symbol.SceneType;
 import com.smart.pen.core.utils.SystemUtil;
-import com.smart.pen.core.views.PenCanvasView;
-import com.smart.pen.core.views.PenCanvasView.PenModel;
+import com.smart.pen.core.views.MultipleCanvasView;
+import com.smart.pen.core.views.MultipleCanvasView.PenModel;
 
 /**
  * 笔信息显示
@@ -85,7 +85,7 @@ public class PenInfo extends Activity{
 	private TextView mWindowY;
 	
 	/** 笔画布 **/
-	private PenCanvasView mPenCanvasView;
+	private MultipleCanvasView mPenCanvasView;
 	
 	//笔视图
 	private PenView mPenView;
@@ -118,7 +118,7 @@ public class PenInfo extends Activity{
 		mXYFrame = (LinearLayout) findViewById(R.id.xyFrame);
 		mLineFrame = (RelativeLayout) findViewById(R.id.lineFrame);
 		mLineWindow = (FrameLayout) findViewById(R.id.lineWindow);
-		mPenCanvasView = (PenCanvasView) findViewById(R.id.penCanvasView);
+		mPenCanvasView = (MultipleCanvasView) findViewById(R.id.penCanvasView);
 		
 		mOriginalX = (TextView) findViewById(R.id.originalX);
 		mOriginalY = (TextView) findViewById(R.id.originalY);
@@ -275,7 +275,7 @@ public class PenInfo extends Activity{
 		RelativeLayout.LayoutParams params = new RelativeLayout.LayoutParams(sizeObj.windowWidth, sizeObj.windowHeight);
 		params.setMargins(sizeObj.windowLeft, sizeObj.windowTop, 0, 0);
 		mLineWindow.setLayoutParams(params);
-		mPenCanvasView.setPenModel(PenModel.WaterPen);
+		mPenCanvasView.setPenModel(PenModel.Pen);
 		mPenCanvasView.setSize(sizeObj.windowWidth, sizeObj.windowHeight);
 	}
 	

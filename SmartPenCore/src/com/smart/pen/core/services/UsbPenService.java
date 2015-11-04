@@ -5,6 +5,7 @@ import java.nio.ByteOrder;
 import java.util.List;
 
 import com.smart.pen.core.common.Listeners.OnScanDeviceListener;
+import com.smart.pen.core.model.DeviceObject;
 import com.smart.pen.core.model.PointObject;
 import com.smart.pen.core.symbol.ConnectState;
 import com.smart.pen.core.symbol.Keys;
@@ -60,7 +61,6 @@ public class UsbPenService extends PenService{
 		registerReceiver(mUsbStateReceiver, intentFilter);
 		
 		setScanTime(5000);
-		scanDevice(null);
 	}
 	
 	@Override
@@ -71,10 +71,25 @@ public class UsbPenService extends PenService{
 	}
 
 	@Override
+	public String getSvrTag() {
+		return Keys.APP_USB_SERVICE_NAME;
+	}
+
+	@Override
+	public DeviceObject getConnectDevice() {
+		if(currUsbDevice != null){
+			DeviceObject device = new DeviceObject(currUsbDevice);
+			return device;
+		}
+		return null;
+	}
+
+	@Override
 	public ConnectState checkDeviceConnect(){
 		ConnectState result = ConnectState.NOTHING;
 		mUsbManager = (UsbManager) getSystemService(Context.USB_SERVICE);
 		for(UsbDevice device :mUsbManager.getDeviceList().values()){
+			
 			if(device.getVendorId() == 3616 && device.getProductId() == 257){
 				currUsbDevice = device;
 				break;
@@ -197,6 +212,7 @@ public class UsbPenService extends PenService{
         protected void onPostExecute(ConnectState result) {
         	isScanning = false;
 			sendConnectState(null,result);
+			
 			if(result == ConnectState.CONNECTED){
 				startReadData();
 			}else if(result == ConnectState.CONNECT_FAIL_PERMISSION){
@@ -231,7 +247,7 @@ public class UsbPenService extends PenService{
 						result = ConnectState.CONNECT_FAIL;
 						break;
 					}
-											
+									
 					usbRequest.setClientData(UsbPenService.this);
 					boolean isrequest = usbRequest.queue(buffer, inmax);
 					if(isrequest){
