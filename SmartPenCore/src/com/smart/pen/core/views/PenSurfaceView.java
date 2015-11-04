@@ -18,7 +18,7 @@ import android.view.SurfaceView;
  *
  * Description
  */
-public class ImageSurfaceView extends SurfaceView{
+public class PenSurfaceView extends SurfaceView{
 
     private SurfaceHolder mSurfaceHolder;  
     private Canvas mCanvas;
@@ -28,7 +28,7 @@ public class ImageSurfaceView extends SurfaceView{
     private int mLastX;//上一次记录点的坐标
     private int mLastY;
 	
-	public ImageSurfaceView(Context context){  
+	public PenSurfaceView(Context context){  
         super(context);  
         this.setBackgroundColor(Color.TRANSPARENT);
         this.setZOrderOnTop(true);

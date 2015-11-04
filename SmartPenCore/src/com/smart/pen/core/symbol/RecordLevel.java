@@ -1,36 +1,70 @@
 package com.smart.pen.core.symbol;
 /**
- * 
+ * 录制等级
  * @author Xiaoz
  * @date 2015年10月22日 上午8:38:59
  *
  * Description
  */
-public enum RecordLevel {
-	MEDIUM(0),
-	HIGH(1),
-	LOW(2);
+public class RecordLevel {
+	/**标准480p 1fps**/
+	public static final int level_11 = 11;
+	/**标准480p 5fps**/
+	public static final int level_12 = 12;
+	/**标准480p 10fps**/
+	public static final int level_13 = 13;
+	/**标准480p 20fps**/
+	public static final int level_14 = 14;
+
+	/**清晰720p 1fps**/
+	public static final int level_21 = 21;
+	/**清晰720p 5fps**/
+	public static final int level_22 = 22;
+	/**清晰720p 10fps**/
+	public static final int level_23 = 23;
+	/**清晰720p 20fps**/
+	public static final int level_24 = 24;
 	
-	private final int value;
-
-    private RecordLevel(int value) {
-        this.value = value;
-    }
-
-    public final int getValue() {
-        return value;
-    }
-    
-    /**
-     * int转换为RecordLevel，如果溢出那么输出MEDIUM
-     * @param value 需要转换的int值
+	/**
+     * 获取视频Rate
      * @return
      */
-    public static RecordLevel toRecordLevel(int value){
-    	if(value >= 0 && value < RecordLevel.values().length){
-    		return RecordLevel.values()[value];
+    public static int getFrameRate(int level){
+        switch (level){
+	        case level_11:
+	            return 1;
+            case level_12:
+                return 5;
+            case level_13:
+                return 10;
+            case level_14:
+                return 20;
+                
+	        case level_21:
+	            return 1;
+            case level_22:
+                return 5;
+            case level_23:
+                return 10;
+            case level_24:
+                return 20;
+                
+            default:
+                return 10;
+        }
+    }
+
+    /**
+     * 获取视频质量
+     * @return
+     */
+    public static int getFrameProgressive(int level){
+    	if(level < 20){
+    		return 480;
+    	}else if(level < 30){
+    		return 720;
     	}else{
-    		return MEDIUM;
+    		return 480;
     	}
     }
 }

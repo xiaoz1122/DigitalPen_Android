@@ -31,16 +31,21 @@ public class PenApplication extends Application{
      * 获取录制级别
      * @return
      */
-    public RecordLevel getRecordLevel(){
+    public int getRecordLevel(){
         SharedPreferences preferences = this.getSharedPreferences(Keys.RECORD_SETTING_KEY, Context.MODE_PRIVATE);
-        RecordLevel type = RecordLevel.toRecordLevel(preferences.getInt(Keys.RECORD_LEVEL_KEY, RecordLevel.MEDIUM.getValue()));
+        int type = preferences.getInt(Keys.RECORD_LEVEL_KEY, RecordLevel.level_13);
         return type;
     }
 
-    public boolean setRecordLevel(RecordLevel value){
+    /**
+     * 设置录制级别
+     * @param value
+     * @return
+     */
+    public boolean setRecordLevel(int value){
         SharedPreferences preferences = this.getSharedPreferences(Keys.RECORD_SETTING_KEY, Context.MODE_PRIVATE);
         SharedPreferences.Editor editor = preferences.edit();
-        editor.putInt(Keys.RECORD_LEVEL_KEY, value.getValue());
+        editor.putInt(Keys.RECORD_LEVEL_KEY, value);
         boolean result = editor.commit();
 
         return result;

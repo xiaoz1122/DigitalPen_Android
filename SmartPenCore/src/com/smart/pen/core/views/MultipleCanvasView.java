@@ -100,7 +100,6 @@ public class MultipleCanvasView extends FrameLayout{
         mPenPaint.setAntiAlias(true);//锯齿不显示
         //mPenPaint.setDither(true); 
         mPenPaint.setFlags(Paint.ANTI_ALIAS_FLAG);
-        //mPenPaint.setPathEffect(new CornerPathEffect(20));
 
         mErasePaint = new Paint();//创建一个橡皮
         mErasePaint.setStyle(Paint.Style.FILL);

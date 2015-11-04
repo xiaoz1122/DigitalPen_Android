@@ -15,7 +15,7 @@ import android.media.ExifInterface;
 import android.net.Uri;
 
 /**
- * 
+ * Bitmap处理工具
  * @author Xiaoz
  * @date 2015年10月2日 下午8:08:32
  *
@@ -154,6 +154,33 @@ public class BitmapUtil {
 
 	    return bm1;
 	}
+	
+	/**
+	 * 合并两张bitmap为一张
+	 * @param background
+	 * @param foreground
+	 * @param fLeft
+	 * @param fTop
+	 * @return
+	 */
+	public static Bitmap combineBitmap(Bitmap background, Bitmap foreground,int fLeft,int fTop) { 
+		return combineBitmap(background,foreground,fLeft,fTop,Bitmap.Config.RGB_565);
+	}
+	
+	public static Bitmap combineBitmap(Bitmap background, Bitmap foreground,int fLeft,int fTop,Bitmap.Config config) {  
+	    if (background == null) {  
+	        return null;  
+	    }  
+	    int bgWidth = background.getWidth();  
+	    int bgHeight = background.getHeight();
+	    Bitmap newmap = Bitmap.createBitmap(bgWidth, bgHeight, config);  
+	    Canvas canvas = new Canvas(newmap);  
+	    canvas.drawBitmap(background, 0, 0, null);  
+	    canvas.drawBitmap(foreground, fLeft,fTop, null);  
+	    canvas.save(Canvas.ALL_SAVE_FLAG);  
+	    canvas.restore();  
+	    return newmap;  
+	} 
 	
 	/**
 	 * bitmap转Bytes

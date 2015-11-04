@@ -34,7 +34,7 @@ public class ImageRecordModule {
     private static final int AUDIO_SOURCE = MediaRecorder.AudioSource.MIC;
 
     // 设置音频采样率，44100是目前的标准，但是某些设备仍然支持22050,16000,11025
-    private static final int AUDIO_RATE_HZ = 44100;
+    private static final int AUDIO_RATE_HZ = 16000;
 
     // 设置音频的录制的声道CHANNEL_IN_STEREO为双声道，CHANNEL_CONFIGURATION_MONO为单声道
     private static final int AUDIO_CHANNEL = AudioFormat.CHANNEL_IN_MONO;
@@ -48,8 +48,8 @@ public class ImageRecordModule {
     /**计时器计数**/
     private int mTimerNum = 0;
 
-    private RecordLevel mRecordLevel = RecordLevel.MEDIUM;
-
+    private int mRecordLevel = RecordLevel.level_13;
+    private int mQuality = 60;
     private int mVideoWidth,mVideoHeight;
 
     /**保存文件名称的前缀**/
@@ -67,8 +67,6 @@ public class ImageRecordModule {
     private ArrayList<byte[]> mAudioBuffer = new ArrayList<byte[]>();
     private ArrayList<byte[]> mImageBuffer = new ArrayList<byte[]>();
 
-    /**是否是横屏**/
-    private boolean isLandscape;
     private boolean isPause;
     private boolean isRecording = false;
     private ImageRecordInterface mGetImageInterface;
@@ -86,7 +84,7 @@ public class ImageRecordModule {
             mTimerThreadExecutor = Executors.newScheduledThreadPool(3);
 
         if(mCacheThreadExecutor == null || mCacheThreadExecutor.isShutdown())
-            mCacheThreadExecutor = Executors.newFixedThreadPool(3);
+            mCacheThreadExecutor = Executors.newFixedThreadPool(1);//写入缓存线程定长1，防止某些进程过快导致帧顺序错乱
 
         if(mFFMergePictureUtils == null)
             mFFMergePictureUtils = new FFMergePictureUtils();
@@ -118,57 +116,45 @@ public class ImageRecordModule {
     	this.mSavePhotoDir = value;
     }
     
-    public void setRecordLevel(RecordLevel level){
+    /**设置压缩质量**/
+    public void setQuality(int value){
+    	this.mQuality = value;
+    }
+    
+    /**设置录制文件名称前缀**/
+    public void setNamePrefix(String value){
+    	this.mNamePrefix = value;
+    }
+    
+    /**设置录制质量级别**/
+    public void setRecordLevel(int level){
         this.mRecordLevel = level;
     }
 
-    public RecordLevel getRecordLevel(){
+    /**获取录制质量级别**/
+    public int getRecordLevel(){
         return mRecordLevel;
     }
-
-    public void setIsLandscape(boolean value){
-        isLandscape = value;
-    }
-    public boolean getIsLandscape(){
-        return isLandscape;
+    
+    /**获取是否正在录制**/
+    public boolean getIsRecording(){
+    	return isRecording;
     }
 
+    /**设置暂停**/
     public void setIsPause(boolean value){
         isPause = value;
     }
+    
+    /**获取是否暂停**/
     public boolean getIsPause(){
         return isPause;
     }
 
+    /**设置视频尺寸**/
     public void setVideoSize(int widht,int height){
         this.mVideoWidth = widht;
         this.mVideoHeight = height;
-    }
-
-    /**
-     * 获取视频Rate
-     * @return
-     */
-    public int getFrameRate(){
-        switch (mRecordLevel){
-            case LOW:
-                return 5;
-            case HIGH:
-                return 20;
-            default:
-                return 10;
-        }
-    }
-
-    public int getFrameProgressive(){
-        switch (mRecordLevel){
-            case LOW:
-                return 240;
-            case HIGH:
-                return 720;
-            default:
-                return 480;
-        }
     }
 
     /**
@@ -176,7 +162,7 @@ public class ImageRecordModule {
      * @return
      */
     public int getVideoWidth(){
-        return isLandscape?mVideoHeight:mVideoWidth;
+        return mVideoWidth;
     }
 
     /**
@@ -184,7 +170,7 @@ public class ImageRecordModule {
      * @return
      */
     public int getVideoHeight(){
-        return isLandscape?mVideoWidth:mVideoHeight;
+        return mVideoHeight;
     }
 
     /**
@@ -198,10 +184,10 @@ public class ImageRecordModule {
         if(flag == 0) {
             isRecording = true;
             //开启获取声音数据线程
-            new Thread(new GetAudioRunnable()).start();
+            new GetAudioTask().executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
             
             //运行计时器
-            int gap = 1000 / getFrameRate();
+            int gap = 1000 / RecordLevel.getFrameRate(mRecordLevel);
             mTimerThreadExecutor.scheduleAtFixedRate(mRecordTimerTask, 0, gap, TimeUnit.MILLISECONDS);
             
             //开始合并视频线程
@@ -212,25 +198,12 @@ public class ImageRecordModule {
     }
 
     /**
-     * 停止
+     * 结束录制
      */
-    public void stopRecord(){
+    public void endRecord(){
         isRecording = false;
         isPause = false;
         mTimerThreadExecutor.shutdownNow();
-    }
-
-    /**
-     * 获取适应当前场景的图片数据
-     * @param bmp
-     * @return
-     */
-    public Bitmap getScreenBitmap(Bitmap bmp){
-        if(isLandscape){
-            //旋转图片
-            bmp = BitmapUtil.adjustBitmapRotation(bmp,-90);
-        }
-        return bmp;
     }
 
     /**
@@ -240,7 +213,6 @@ public class ImageRecordModule {
         boolean result = false;
         Bitmap bitmap = mGetImageInterface.getImage();
         if(bitmap != null){
-            bitmap = getScreenBitmap(bitmap);
             String savePath = mSavePhotoDir + FileUtils.getDateFormatName() + ".jpg";
             result = com.smart.pen.core.utils.FileUtils.saveBitmap(bitmap,savePath);
             if(!bitmap.isRecycled())bitmap.recycle();
@@ -252,7 +224,7 @@ public class ImageRecordModule {
     private int startRecordHnadler(){
         String fileName = mNamePrefix +"_"+FileUtils.getDateFormatName("yyyyMMdd_HHmmss")+".mp4";
         String outFile = mSaveVideoDir + fileName;
-        mFFMergePictureUtils.setVideoRate(getFrameRate());
+        mFFMergePictureUtils.setVideoRate(RecordLevel.getFrameRate(mRecordLevel));
         int flag = mFFMergePictureUtils.start(outFile, getVideoWidth(), getVideoHeight());
         return flag;
     }
@@ -280,11 +252,9 @@ public class ImageRecordModule {
         @Override
         public void run() {
             if(bitmap != null) {
-                //根据场景旋转图片
-                bitmap = getScreenBitmap(bitmap);
                 //裁剪图片
                 bitmap = BitmapUtil.zoomBitmap(bitmap, getVideoWidth(), getVideoHeight());
-                byte[] data = BitmapUtil.bitmap2Bytes(bitmap,60);
+                byte[] data = BitmapUtil.bitmap2Bytes(bitmap,mQuality);
                 mImageBuffer.add(data);
 
                 if(!bitmap.isRecycled())bitmap.recycle();
@@ -296,7 +266,7 @@ public class ImageRecordModule {
     }
 
     private class MergeVideoTask extends AsyncTask<Void, Integer, Integer>{
-    	private byte[] tmp = null;
+ 
         @Override
         protected Integer doInBackground(Void... params) {
             int progress = 0;
@@ -304,9 +274,14 @@ public class ImageRecordModule {
             while (isRecording || mAudioBuffer.size() > 0 || mImageBuffer.size() > 0) {
 				if(mFFMergePictureUtils.getTimeDifference() <= 0){
 					if(mImageBuffer.size() > 0){
-						byte[] data = mImageBuffer.remove(0);
-		                mFFMergePictureUtils.appendImage(data, data.length);
-		                data = null;
+						byte[] data = null;
+						try{
+							data = mImageBuffer.remove(0);
+						}catch(IndexOutOfBoundsException e){}
+						
+						if(data != null){
+							mFFMergePictureUtils.appendImage(data, data.length);
+						}
 		                
 		                if(!isRecording){//录制结束后发送当前进度
 			                progress = (int)(((float)(mTimerNum - mImageBuffer.size()) / mTimerNum) * 100);
@@ -319,39 +294,57 @@ public class ImageRecordModule {
 					}
 				}else{
 					if(mAudioBuffer.size() > 0){
-						byte[] audioData = new byte[GetAudioRunnable.BUFFER_LENGTH];
+						byte[] audioData = new byte[GetAudioTask.BUFFER_LENGTH];
 						int len = 0;
 						//将audioData调整到2048长度后再发送，因为部分机型会无法一次读满buffer
-						while(len < GetAudioRunnable.BUFFER_LENGTH){
-							if(mAudioBuffer.size() == 0){
-								tmp = null;
-								break;
-							}
-							if(tmp != null){
-								System.arraycopy(tmp, 0, audioData, 0, tmp.length);
-								len += tmp.length;
-								tmp = null;
-							}
+						while(len < GetAudioTask.BUFFER_LENGTH){
+							try {
+		                        Thread.sleep(1);
+		                    } catch (Exception e) {
+		                        e.printStackTrace();
+		                    }
 							
-							byte[] data = mAudioBuffer.remove(0);
-							int gap = GetAudioRunnable.BUFFER_LENGTH - (data.length + len);
-							if(gap >= 0){
-								System.arraycopy(data, 0, audioData, len, data.length);
-								len += data.length;
+							if(mAudioBuffer.size() > 0){
+								byte[] data = null;
+								try{
+									data = mAudioBuffer.remove(0);
+								}catch(IndexOutOfBoundsException e){}
+								
+								if(data != null && data.length > 0){
+									int gap = GetAudioTask.BUFFER_LENGTH - (data.length + len);
+									if(gap >= 0){
+										System.arraycopy(data, 0, audioData, len, data.length);
+										len += data.length;
+									}else{
+										//获取有效数据
+										System.arraycopy(data, 0, audioData, len, data.length + gap);
+										len += data.length + gap;
+										
+										//获取没有读完的数据存入mAudioBuffer
+										byte[] ext = new byte[Math.abs(gap)];
+										System.arraycopy(data, data.length + gap, ext, 0, Math.abs(gap));
+										mAudioBuffer.add(0, ext);
+									}
+								}
 							}else{
-								System.arraycopy(data, 0, audioData, len, data.length + gap);
-								len += data.length + gap;
-								tmp = new byte[Math.abs(gap)];
-								System.arraycopy(data, data.length + gap, tmp, 0, Math.abs(gap));
+								//如果已经停止并且没有buffer了，那么退出
+								if(!isRecording)break;
 							}
 						}
-		                mFFMergePictureUtils.appendAudio(audioData, audioData.length);
-		                audioData = null;
+						if(len > 0){
+							mFFMergePictureUtils.appendAudio(audioData, audioData.length);
+						}
+						audioData = null;
 					}else if(!isRecording){
 						//如果不是录制状态，而且音频数据也没了，那么丢掉剩余图像数据
 						mImageBuffer.clear();
 					}
 				}
+				try {
+                    Thread.sleep(1);
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
 			}
             Log.v(TAG, "MergeVideoTask end");
             return progress;
@@ -365,38 +358,38 @@ public class ImageRecordModule {
         	stopRecordHandler();
         }
     }
-
-    private class GetAudioRunnable implements Runnable{
+    
+    private class GetAudioTask extends AsyncTask<Void, Void, Void>{
     	public static final int BUFFER_LENGTH = 2048;
         @Override
-        public void run() {
-            byte[] data;
+        protected Void doInBackground(Void... params) {
+        	byte[] data;
             byte[] readData = new byte[BUFFER_LENGTH];
   
             //开始录制音频
             mAudioRecord.startRecording();
             while (isRecording) {
-
-                if(isPause) {
+            	
+                //如果暂停或还没开始，那么停止采样
+                if(isPause || mTimerNum <= 0) {
                     try {
                         Thread.sleep(1);
                     } catch (Exception e) {
                         e.printStackTrace();
                     }
-                    continue;//如果暂停，那么停止采样
+                    continue;
                 }
-
-                if(mTimerNum <= 0)
-                    continue;//如果视频还没开始录制，那么跳过
 
                 //获取音频数据
                 int len = mAudioRecord.read(readData, 0, BUFFER_LENGTH);
+                //Log.v(TAG, "GetAudioTask len:"+len);
                 data = new byte[len];
                 System.arraycopy(readData, 0, data, 0, len);
                 mAudioBuffer.add(data);
             }
             //停止录音
             mAudioRecord.stop();
+			return null;
         }
     }
 
@@ -406,7 +399,7 @@ public class ImageRecordModule {
 
             if(isPause)return;
 
-            int seconds = mTimerNum / getFrameRate();
+            int seconds = mTimerNum / RecordLevel.getFrameRate(mRecordLevel);
 
             Message msg = Message.obtain(mHandler, MSG_RECORD_SECONDS);
             msg.arg1 = seconds;
