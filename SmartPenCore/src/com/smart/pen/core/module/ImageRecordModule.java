@@ -14,6 +14,7 @@ import com.smart.pen.core.utils.BitmapUtil;
 import com.smart.pen.core.utils.FFMergePictureUtils;
 import com.smart.pen.core.utils.FileUtils;
 
+import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.TimerTask;
 import java.util.concurrent.ExecutorService;
@@ -50,7 +51,11 @@ public class ImageRecordModule {
 
     private int mRecordLevel = RecordLevel.level_13;
     private int mQuality = 60;
+    
+    /**输出视频尺寸**/
     private int mVideoWidth,mVideoHeight;
+    /**输入图片尺寸**/
+    private int mInputWidth,mInputHeight;
 
     /**保存文件名称的前缀**/
     private String mNamePrefix = "MC";
@@ -63,9 +68,14 @@ public class ImageRecordModule {
 
     private AudioRecord mAudioRecord;
     private FFMergePictureUtils mFFMergePictureUtils;
-
-    private ArrayList<byte[]> mAudioBuffer = new ArrayList<byte[]>();
-    private ArrayList<byte[]> mImageBuffer = new ArrayList<byte[]>();
+    
+    /**单个图片数据缓存**/
+    private ByteBuffer mImageBuffer;
+    /**单个图片临时缓存**/
+    private Bitmap mTmpBitmap;
+    
+    private ArrayList<byte[]> mAudioBuffers = new ArrayList<byte[]>();
+    private ArrayList<byte[]> mImageBuffers = new ArrayList<byte[]>();
 
     private boolean isPause;
     private boolean isRecording = false;
@@ -76,12 +86,12 @@ public class ImageRecordModule {
     }
 
     public void init(){
-        mAudioBuffer.clear();
-        mImageBuffer.clear();
+        mAudioBuffers.clear();
+        mImageBuffers.clear();
         isPause = false;
 
         if(mTimerThreadExecutor == null || mTimerThreadExecutor.isShutdown())
-            mTimerThreadExecutor = Executors.newScheduledThreadPool(3);
+            mTimerThreadExecutor = Executors.newScheduledThreadPool(1);
 
         if(mCacheThreadExecutor == null || mCacheThreadExecutor.isShutdown())
             mCacheThreadExecutor = Executors.newFixedThreadPool(1);//写入缓存线程定长1，防止某些进程过快导致帧顺序错乱
@@ -104,6 +114,21 @@ public class ImageRecordModule {
                 AUDIO_CHANNEL,
                 AUDIO_FORMAT,
                 bufferSize);
+    }
+    
+    /**
+     * 释放资源
+     */
+    public void releaseImageRes(){
+    	if(mImageBuffer != null){
+        	mImageBuffer.clear();
+        	mImageBuffer = null;
+        }
+        
+        if(mTmpBitmap != null){
+        	if(!mTmpBitmap.isRecycled())mTmpBitmap.recycle();
+        	mTmpBitmap = null;
+        }
     }
     
     /**设置视频保存文件夹**/
@@ -151,14 +176,26 @@ public class ImageRecordModule {
         return isPause;
     }
 
-    /**设置视频尺寸**/
-    public void setVideoSize(int widht,int height){
-        this.mVideoWidth = widht;
+    /**设置输入图片尺寸**/
+    public void setInputImageSize(int width,int height){
+    	this.mInputWidth = width;
+    	this.mInputHeight = height;
+    	
+    	setOutputVideoSize(width,height);
+        releaseImageRes();
+        
+        mImageBuffer = ByteBuffer.allocateDirect(mInputWidth * mInputHeight * 4);
+        mTmpBitmap = Bitmap.createBitmap(mInputWidth, mInputHeight, Bitmap.Config.ARGB_8888);
+    }
+    
+    /**设置输出视频尺寸,需要先设置输入尺寸setInputImageSize**/
+    public void setOutputVideoSize(int width,int height){
+        this.mVideoWidth = width;
         this.mVideoHeight = height;
     }
 
     /**
-     * 获取视频宽度
+     * 获取输出视频宽度
      * @return
      */
     public int getVideoWidth(){
@@ -166,7 +203,7 @@ public class ImageRecordModule {
     }
 
     /**
-     * 获取视频高度
+     * 获取输出视频高度
      * @return
      */
     public int getVideoHeight(){
@@ -210,13 +247,46 @@ public class ImageRecordModule {
      * 保存截图
      */
     public boolean saveSnapshot(){
+    	String savePath = mSavePhotoDir + FileUtils.getDateFormatName() + ".jpg";
+    	return saveSnapshot(savePath);
+    }
+    
+    /**
+     * 保存截图
+     * @param savePath
+     * @return
+     */
+    public boolean saveSnapshot(String savePath){
         boolean result = false;
-        Bitmap bitmap = mGetImageInterface.getImage();
-        if(bitmap != null){
-            String savePath = mSavePhotoDir + FileUtils.getDateFormatName() + ".jpg";
-            result = com.smart.pen.core.utils.FileUtils.saveBitmap(bitmap,savePath);
-            if(!bitmap.isRecycled())bitmap.recycle();
-            bitmap = null;
+        
+        ByteBuffer buffer = null;
+        Bitmap bmp = null;
+        try{
+        	//监听Exception 防止createBitmap占用内存过大导致oom
+        	buffer = ByteBuffer.allocateDirect(mInputWidth * mInputHeight * 4);
+        	bmp = Bitmap.createBitmap(mInputWidth, mInputHeight, Bitmap.Config.ARGB_8888);
+        }catch(IllegalArgumentException e){
+        	e.printStackTrace();
+        	buffer = null;
+        }catch(Exception e){
+        	e.fillInStackTrace();
+        	buffer = null;
+        }
+        
+        if(buffer != null){
+        	if(bmp != null){
+		        int len = mGetImageInterface.fillImageBuffer(buffer);
+		        if(len > 0){
+		        	//将buffer的下一读写位置置为0
+		        	buffer.position(0);
+		        	bmp.copyPixelsFromBuffer(buffer);
+		        	result = FileUtils.saveBitmap(bmp, savePath);
+		        }
+		        bmp.recycle();
+		        bmp = null;
+        	}
+	        buffer.clear();
+	        buffer = null;
         }
         return result;
     }
@@ -236,31 +306,41 @@ public class ImageRecordModule {
 
         mFFMergePictureUtils.end();
         mTimerNum = 0;
-        mAudioBuffer.clear();
         mImageBuffer.clear();
+        mAudioBuffers.clear();
+        mImageBuffers.clear();
         mGetImageInterface.videoCodeState(100);
 
     }
 
-    private class WriteCacheRunnable implements Runnable{
-        private Bitmap bitmap;
+    private class WriteBufferRunnable implements Runnable{
+        private byte[] bitmapData;
 
-        public WriteCacheRunnable(Bitmap bitmap){
-            this.bitmap = bitmap;
+        public WriteBufferRunnable(byte[] bitmapData){
+            this.bitmapData = bitmapData;
         }
 
         @Override
         public void run() {
-            if(bitmap != null) {
-                //裁剪图片
-                bitmap = BitmapUtil.zoomBitmap(bitmap, getVideoWidth(), getVideoHeight());
-                byte[] data = BitmapUtil.bitmap2Bytes(bitmap,mQuality);
-                mImageBuffer.add(data);
+            if(bitmapData != null) {
 
-                if(!bitmap.isRecycled())bitmap.recycle();
-
-                data = null;
-                bitmap = null;
+                //Log.v(TAG, "WriteBuffer 1 time:"+System.currentTimeMillis());
+            	//mTmpBitmap.eraseColor(0);
+            	mTmpBitmap.copyPixelsFromBuffer(ByteBuffer.wrap(bitmapData));
+            	
+            	byte[] data;
+            	if(mInputWidth != mVideoWidth || mInputHeight != mVideoHeight){
+            		Bitmap bmp = BitmapUtil.zoomBitmap(mTmpBitmap, mVideoWidth, mVideoHeight);
+            		data = BitmapUtil.bitmap2Bytes(bmp,mQuality);
+            		bmp = null;
+            	}else{
+            		data = BitmapUtil.bitmap2Bytes(mTmpBitmap,mQuality);
+            	}
+            	
+                mImageBuffers.add(data);
+                
+                //Log.v(TAG, "WriteBuffer 2 time:" + System.currentTimeMillis());
+                //Log.v(TAG, " ");
             }
         }
     }
@@ -271,12 +351,12 @@ public class ImageRecordModule {
         protected Integer doInBackground(Void... params) {
             int progress = 0;
 
-            while (isRecording || mAudioBuffer.size() > 0 || mImageBuffer.size() > 0) {
+            while (isRecording || mAudioBuffers.size() > 0 || mImageBuffers.size() > 0) {
 				if(mFFMergePictureUtils.getTimeDifference() <= 0){
-					if(mImageBuffer.size() > 0){
+					if(mImageBuffers.size() > 0){
 						byte[] data = null;
 						try{
-							data = mImageBuffer.remove(0);
+							data = mImageBuffers.remove(0);
 						}catch(IndexOutOfBoundsException e){}
 						
 						if(data != null){
@@ -284,16 +364,16 @@ public class ImageRecordModule {
 						}
 		                
 		                if(!isRecording){//录制结束后发送当前进度
-			                progress = (int)(((float)(mTimerNum - mImageBuffer.size()) / mTimerNum) * 100);
+			                progress = (int)(((float)(mTimerNum - mImageBuffers.size()) / mTimerNum) * 100);
 			                if(progress < 100)publishProgress(progress);
 		                }
 		                		
 					}else if(!isRecording){
 						//如果不是录制状态，而且图片数据也没了，那么丢掉剩余音频数据
-						mAudioBuffer.clear();
+						mAudioBuffers.clear();
 					}
 				}else{
-					if(mAudioBuffer.size() > 0){
+					if(mAudioBuffers.size() > 0){
 						byte[] audioData = new byte[GetAudioTask.BUFFER_LENGTH];
 						int len = 0;
 						//将audioData调整到2048长度后再发送，因为部分机型会无法一次读满buffer
@@ -304,10 +384,10 @@ public class ImageRecordModule {
 		                        e.printStackTrace();
 		                    }
 							
-							if(mAudioBuffer.size() > 0){
+							if(mAudioBuffers.size() > 0){
 								byte[] data = null;
 								try{
-									data = mAudioBuffer.remove(0);
+									data = mAudioBuffers.remove(0);
 								}catch(IndexOutOfBoundsException e){}
 								
 								if(data != null && data.length > 0){
@@ -320,10 +400,10 @@ public class ImageRecordModule {
 										System.arraycopy(data, 0, audioData, len, data.length + gap);
 										len += data.length + gap;
 										
-										//获取没有读完的数据存入mAudioBuffer
+										//获取没有读完的数据存入mAudioBuffers
 										byte[] ext = new byte[Math.abs(gap)];
 										System.arraycopy(data, data.length + gap, ext, 0, Math.abs(gap));
-										mAudioBuffer.add(0, ext);
+										mAudioBuffers.add(0, ext);
 									}
 								}
 							}else{
@@ -337,7 +417,7 @@ public class ImageRecordModule {
 						audioData = null;
 					}else if(!isRecording){
 						//如果不是录制状态，而且音频数据也没了，那么丢掉剩余图像数据
-						mImageBuffer.clear();
+						mImageBuffers.clear();
 					}
 				}
 				try {
@@ -385,7 +465,7 @@ public class ImageRecordModule {
                 //Log.v(TAG, "GetAudioTask len:"+len);
                 data = new byte[len];
                 System.arraycopy(readData, 0, data, 0, len);
-                mAudioBuffer.add(data);
+                mAudioBuffers.add(data);
             }
             //停止录音
             mAudioRecord.stop();
@@ -405,17 +485,22 @@ public class ImageRecordModule {
             msg.arg1 = seconds;
             msg.sendToTarget();
 
-            Bitmap bmp = mGetImageInterface.getImage();
-
-            Log.v(TAG, "RecordTimerTask num:" + mTimerNum+",buffer size:"+mImageBuffer.size());
-            try {
-                mCacheThreadExecutor.execute(new WriteCacheRunnable(bmp));
-            }catch (RejectedExecutionException e){
-                e.printStackTrace();
-            }catch (NullPointerException e){
-                e.printStackTrace();
+            
+            mImageBuffer.clear();
+            int len = mGetImageInterface.fillImageBuffer(mImageBuffer);
+            if(len > 0){
+	            byte[] bitmapData = mImageBuffer.array();
+	            
+	            Log.v(TAG, "RecordTimerTask num:" + mTimerNum+",buffer size:"+mImageBuffers.size());
+	            try {
+	                mCacheThreadExecutor.execute(new WriteBufferRunnable(bitmapData));
+	            }catch (RejectedExecutionException e){
+	                e.printStackTrace();
+	            }catch (NullPointerException e){
+	                e.printStackTrace();
+	            }
             }
-
+            
             mTimerNum++;
         }
     };
@@ -436,10 +521,11 @@ public class ImageRecordModule {
      */
     public interface ImageRecordInterface {
         /**
-         * 获取一张图片
-         * @return
+         * 获取需要录制的截图缓存
+         * @param buffer
+         * @return 返回读取长度
          */
-        Bitmap getImage();
+        int fillImageBuffer(ByteBuffer buffer);
 
         /**
          * 录制时间

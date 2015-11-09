@@ -7,7 +7,7 @@ package com.smart.pen.core.symbol;
  * Description
  */
 public class RecordLevel {
-	/**标准480p 1fps**/
+	/**标准480p 2fps**/
 	public static final int level_11 = 11;
 	/**标准480p 5fps**/
 	public static final int level_12 = 12;
@@ -16,7 +16,7 @@ public class RecordLevel {
 	/**标准480p 20fps**/
 	public static final int level_14 = 14;
 
-	/**清晰720p 1fps**/
+	/**清晰720p 2fps**/
 	public static final int level_21 = 21;
 	/**清晰720p 5fps**/
 	public static final int level_22 = 22;
@@ -32,7 +32,7 @@ public class RecordLevel {
     public static int getFrameRate(int level){
         switch (level){
 	        case level_11:
-	            return 1;
+	            return 2;
             case level_12:
                 return 5;
             case level_13:
@@ -41,7 +41,7 @@ public class RecordLevel {
                 return 20;
                 
 	        case level_21:
-	            return 1;
+	            return 2;
             case level_22:
                 return 5;
             case level_23:
