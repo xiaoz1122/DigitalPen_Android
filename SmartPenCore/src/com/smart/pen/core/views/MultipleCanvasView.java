@@ -310,57 +310,6 @@ public class MultipleCanvasView extends FrameLayout{
         	mPenDrawView.setPenModel(mPenModel);
         }
         mPenDrawView.drawLine(x, y, isRoute, paint);
-        
-        //是否准备写 笔尖是否接触
-//        if(isRoute){
-//        	
-//            //是否是move
-//            if(mLastX != 0 && mLastY != 0){
-//            	double speed = Math.sqrt(Math.pow(mLastX-x,2) + Math.pow(mLastY-y,2));
-//            	if(mPenModel != PenModel.None && !mIsRubber){
-//            		//根据速度计算笔迹粗/细
-//                	int fix = (int)(speed / 10);
-//                	int weight = mPenWeight - fix;
-//                	
-//                	//如果距离小于计算后的weight，那么不处理
-//                	if(speed <= weight)return;
-//                	if(weight < 1)weight = 1;
-//                	paint.setStrokeWidth(weight);
-//            	}else if(speed <= mPenWeight){
-//            		//如果距离小于weight，那么不处理
-//            		return;
-//            	}
-//            	
-//            	if(mPenModel == PenModel.Pen){
-//            		mCanvas.drawLine(mLastX, mLastY, x, y, paint);
-//            	}else{
-//            		mPath.quadTo(mLastX, mLastY, x, y);
-//	                mCanvas.drawPath(mPath, paint);
-//            	}
-//                mLastX = x;
-//                mLastY = y;
-//            }else{
-//            	paint.setStrokeWidth(mPenWeight);
-//
-//            	if(mPenModel == PenModel.Pen){
-//                    mCanvas.drawPoint(x, y, paint);
-//            	}else{
-//	                mCanvas.drawPath(mPath, paint);
-//	                mPath.reset();
-//	                mPath.moveTo(x,y);
-//            	}
-//                mLastX = x;
-//                mLastY = y;
-//            }
-//        }else{
-//            mPath.reset();
-//
-//            //没在写
-//            mLastX = 0;
-//            mLastY = 0;
-//        }
-//
-//    	mDrawView.invalidate();
     }
     
     /**
@@ -378,7 +327,7 @@ public class MultipleCanvasView extends FrameLayout{
 				ShapeView view = new ShapeView(getContext(),mInsertShape);
 				view.setIsFill(mInsertShapeIsFill);
 				view.setPaint(mPenPaint);
-				this.addView(view,mPhotoList.size());
+				this.addView(view,mPhotoList.size() + mShapeList.size());
 				this.mShapeList.add(view);
 				
 				mInsertShapeTmp = view;
@@ -395,7 +344,7 @@ public class MultipleCanvasView extends FrameLayout{
     public void insertPhoto(Bitmap bitmap){
     	mIsEditPhoto = true;
     	PhotoView view = new PhotoView(getContext(),bitmap);
-		this.addView(view,0);
+		this.addView(view,mPhotoList.size());
 		mPenDrawView.bringToFront();
 		this.mPhotoList.add(view);
     }
