@@ -19,6 +19,8 @@ import android.view.View;
  * Description
  */
 public class PhotoView extends View {
+	public static final String TAG = PhotoView.class.getSimpleName();
+	
     private Bitmap mBitmap;
     private int mX,mY,mDownX,mDownY;
     private int mStartX = 0;
@@ -38,6 +40,7 @@ public class PhotoView extends View {
     public PhotoView(Context context,Bitmap bitmap){
         super(context);
         
+        this.setTag(TAG);
         this.mBitmap = bitmap;
         this.mBitmapData = BitmapUtil.bitmap2Bytes(mBitmap, 100);
     }

@@ -5,6 +5,7 @@ import java.util.List;
 
 import com.smart.pen.core.common.Listeners.OnConnectStateListener;
 import com.smart.pen.core.common.Listeners.OnFixedPointListener;
+import com.smart.pen.core.common.Listeners.OnPenGestureListener;
 import com.smart.pen.core.common.Listeners.OnPointChangeListener;
 import com.smart.pen.core.common.Listeners.OnScanDeviceListener;
 import com.smart.pen.core.model.DeviceObject;
@@ -45,6 +46,7 @@ public abstract class PenService extends Service{
 	protected OnConnectStateListener onConnectStateListener = null;
 	protected OnPointChangeListener onPointChangeListener = null;
 	protected OnFixedPointListener onFixedPointListener = null;
+	protected OnPenGestureListener onPenGestureListener = null;
 
 	/**是否发送广播信息**/
 	protected boolean isBroadcast;
@@ -55,10 +57,12 @@ public abstract class PenService extends Service{
 
 	/**场景坐标对象**/
 	protected PointObject mScenePointObject = new PointObject(); 
-	/**固定点停留计算次数**/
-	private static final int FIXED_POINT_COUNT = 50;
-	private ArrayList<Short> mFixedPointX = new ArrayList<Short>(FIXED_POINT_COUNT);
-	private ArrayList<Short> mFixedPointY = new ArrayList<Short>(FIXED_POINT_COUNT);
+	/**检查固定点样本数量**/
+	private static final int CHECK_FIXED_SAMPLE_COUNT = 50;
+	//路劲计数
+	private int mRouteSumX,mRouteSumY;
+	private ArrayList<Short> mSamplePointX = new ArrayList<Short>();
+	private ArrayList<Short> mSamplePointY = new ArrayList<Short>();
 	
 	protected PointObject mFirstPointObject = null;
 	protected PointObject mSecondPointObject = null;
@@ -78,6 +82,9 @@ public abstract class PenService extends Service{
 	
 	/**获取服务标记**/
 	abstract public String getSvrTag();
+	
+	/**获取接收器占用高度，服务应该根据连接上的设备类型判断占用纸张的高度，如XN680夹子夹在纸上占用掉880**/
+	abstract public short getReceiverGapHeight();
 	
 	/**获取当前连接设备名称**/
 	abstract public DeviceObject getConnectDevice();
@@ -159,6 +166,14 @@ public abstract class PenService extends Service{
 	}
 	
 	/**
+	 * 设置笔手势监听
+	 * @param listener
+	 */
+	public void setOnPenGestureListener(OnPenGestureListener listener){
+		this.onPenGestureListener = listener;
+	}
+	
+	/**
 	 * 设置坐标定点监听
 	 * @param listener
 	 */
@@ -192,6 +207,9 @@ public abstract class PenService extends Service{
 	public void sendPointInfo(PointObject point){
 		if(onPointChangeListener != null)
 			onPointChangeListener.change(point);
+		
+		//检查是否触发笔手势
+		checkPenGestureStatus(point);
 		
 		if(isBroadcast){
 			//发送笔迹JSON格式广播包
@@ -243,8 +261,23 @@ public abstract class PenService extends Service{
 			mScenePointObject = new PointObject();
 			mScenePointObject.setSceneType(value);
 			
-			if(value == SceneType.CUSTOM)
+			if(value == SceneType.CUSTOM){
 				mScenePointObject.setCustomScene((short)width, (short)height,(short)offsetX,(short)offsetY);
+			}else{
+				mScenePointObject.setOffset((short)offsetX,(short)offsetY);
+			}
+		}
+		return result;
+	}
+	
+	public boolean setSceneOffset(int offsetX,int offsetY){
+		boolean result = false;
+		SharedPreferences preferences = this.getSharedPreferences(Keys.DEFAULT_SETTING_KEY, Context.MODE_PRIVATE);
+		SharedPreferences.Editor editor = preferences.edit();
+		editor.putInt(Keys.DEFAULT_SCENE_OFFSET_X_KEY, offsetX);
+		editor.putInt(Keys.DEFAULT_SCENE_OFFSET_Y_KEY, offsetY);
+		if(result = editor.commit()){
+			mScenePointObject.setOffset((short)offsetX,(short)offsetY);
 		}
 		return result;
 	}
@@ -265,6 +298,16 @@ public abstract class PenService extends Service{
 		return mScenePointObject.getHeight();
 	}
 	
+	/**获取x轴偏移**/
+	public short getSceneOffsetX(){
+		return mScenePointObject.getOffsetX();
+	}
+	
+	/**获取x轴偏移**/
+	public short getSceneOffsetY(){
+		return mScenePointObject.getOffsetY();
+	}
+	
 	/**
 	 * 获取当前场景类型
 	 * @return
@@ -276,13 +319,17 @@ public abstract class PenService extends Service{
 		if(type != SceneType.NOTHING){
 			mScenePointObject = new PointObject();
 			mScenePointObject.setSceneType(type);
+			
+			short offsetX = (short)preferences.getInt(Keys.DEFAULT_SCENE_OFFSET_X_KEY, 0);
+			short offsetY = (short)preferences.getInt(Keys.DEFAULT_SCENE_OFFSET_Y_KEY, 0);
+			
 			if(type == SceneType.CUSTOM){
 				short width = (short)preferences.getInt(Keys.DEFAULT_SCENE_WIDTH_KEY, 0);
 				short height = (short)preferences.getInt(Keys.DEFAULT_SCENE_HEIGHT_KEY, 0);
-				short offsetX = (short)preferences.getInt(Keys.DEFAULT_SCENE_OFFSET_X_KEY, 0);
-				short offsetY = (short)preferences.getInt(Keys.DEFAULT_SCENE_OFFSET_Y_KEY, 0);
 				
 				mScenePointObject.setCustomScene(width, height, offsetX, offsetY);
+			}else{
+				mScenePointObject.setOffset(offsetX, offsetY);
 			}
 		}
 		return type;
@@ -294,6 +341,7 @@ public abstract class PenService extends Service{
 		if(pointList != null && pointList.size() > 0){
 			for(int i = 0;i<pointList.size();i++){
 				item = pointList.get(i);
+				item.setTopGap(getReceiverGapHeight());
 				if(mScenePointObject.getSceneType() == SceneType.CUSTOM){
 					item.setCustomScene(mScenePointObject.getWidth(), 
 										mScenePointObject.getHeight(),
@@ -301,38 +349,35 @@ public abstract class PenService extends Service{
 										mScenePointObject.getOffsetY());
 				}else{
 					item.setSceneType(mScenePointObject.getSceneType());
+					item.setOffset(mScenePointObject.getOffsetX(), mScenePointObject.getOffsetY());
 				}
 				handlerPointInfo(item);
 				//Log.v(TAG, "out point:"+item.toString());
-				addFixedPoint(item);
+				addSamplePoint(item);
 				
 				//定位完第一个坐标，笔被抬起后，记录状态
 				if(mFirstPointDown && !item.isRoute)mFirstPointDown = false;
 			}
 			
+			//处理固定点坐标信息
 			handlerFixedPointInfo(item);
 		}
 	}
 	
 	/**
-	 * 添加固定点记录
+	 * 添加坐标样本
 	 * @param x
 	 * @param y
 	 */
-	protected void addFixedPoint(PointObject point){
+	protected void addSamplePoint(PointObject point){
 		if(point.isRoute){
-			mFixedPointX.add(point.originalX);
-			mFixedPointY.add(point.originalY);
+			mRouteSumX += point.originalX;
+			mRouteSumY += point.originalY;
 			
-			while(mFixedPointX.size() > FIXED_POINT_COUNT){
-				mFixedPointX.remove(0);
-			}
-			while(mFixedPointY.size() > FIXED_POINT_COUNT){
-				mFixedPointY.remove(0);
-			}
+			mSamplePointX.add(point.originalX);
+			mSamplePointY.add(point.originalY);
 		}else{
-			mFixedPointX.clear();
-			mFixedPointY.clear();
+			clearSamplePoint();
 		}
 	}
 	
@@ -342,18 +387,9 @@ public abstract class PenService extends Service{
 	 */
 	protected boolean isFixedPoint(){
 		int result = 0;
-		if(mFixedPointX.size() >= FIXED_POINT_COUNT && mFixedPointY.size() >= FIXED_POINT_COUNT){
-			int sumX = 0;
-			int sumY = 0;
-			for(int i = 0;i < mFixedPointX.size();i++){
-				sumX += mFixedPointX.get(i);
-			}
-			for(int i = 0;i < mFixedPointY.size();i++){
-				sumY += mFixedPointY.get(i);
-			}
-			
-			int gapX = (sumX / mFixedPointX.size()) - mFixedPointX.get(0);
-			int gapY = (sumY / mFixedPointY.size()) - mFixedPointY.get(0);
+		if(mSamplePointX.size() >= CHECK_FIXED_SAMPLE_COUNT && mSamplePointY.size() >= CHECK_FIXED_SAMPLE_COUNT){
+			int gapX = (mRouteSumX / mSamplePointX.size()) - mSamplePointX.get(0);
+			int gapY = (mRouteSumY / mSamplePointY.size()) - mSamplePointY.get(0);
 			
 			if(Math.abs(gapX) < 50)result++;
 			if(Math.abs(gapY) < 50)result++;
@@ -385,8 +421,16 @@ public abstract class PenService extends Service{
 		
 		mFirstPointDown = false;
 		
-		mFixedPointX.clear();
-		mFixedPointY.clear();
+		clearSamplePoint();
+	}
+	
+	/**
+	 * 清除样本坐标
+	 */
+	public void clearSamplePoint(){
+		mRouteSumX = mRouteSumY = 0;
+		mSamplePointX.clear();
+		mSamplePointY.clear();
 	}
 	
 	/**
@@ -423,6 +467,19 @@ public abstract class PenService extends Service{
 			}
 		}
 		sendFixedPointState(state);
+	}
+	
+	/**
+	 * 检查笔手势状态
+	 * @param point
+	 */
+	private void checkPenGestureStatus(PointObject point){
+		if(onPenGestureListener == null)return;
+		
+		if(isFixedPoint()){
+			onPenGestureListener.longClick(point);
+			clearSamplePoint();
+		}
 	}
 	
 

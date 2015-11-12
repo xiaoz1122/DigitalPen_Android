@@ -13,7 +13,10 @@ import android.graphics.Paint;
 import android.graphics.PorterDuff.Mode;
 import android.graphics.PorterDuffXfermode;
 import android.util.AttributeSet;
+import android.util.Log;
 import android.view.MotionEvent;
+import android.view.View;
+import android.view.View.OnLongClickListener;
 import android.widget.FrameLayout;
 
 /**
@@ -23,7 +26,8 @@ import android.widget.FrameLayout;
  *
  * Description
  */
-public class MultipleCanvasView extends FrameLayout{
+public class MultipleCanvasView extends FrameLayout implements OnLongClickListener{
+	public static final String TAG = MultipleCanvasView.class.getSimpleName();
 
 	private int mWidth;//画布宽高
     private int mHeight;
@@ -72,6 +76,13 @@ public class MultipleCanvasView extends FrameLayout{
 		}
         initCanvasInfo();
     }
+
+	@Override
+	public boolean onLongClick(View v) {
+		Log.v(TAG, "onLongClick tag:"+v.getTag());
+		
+		return false;
+	}
     
     private void initCanvasInfo(){
     	

@@ -74,6 +74,11 @@ public class UsbPenService extends PenService{
 	public String getSvrTag() {
 		return Keys.APP_USB_SERVICE_NAME;
 	}
+	
+	@Override
+	public short getReceiverGapHeight() {
+		return 880;
+	}
 
 	@Override
 	public DeviceObject getConnectDevice() {

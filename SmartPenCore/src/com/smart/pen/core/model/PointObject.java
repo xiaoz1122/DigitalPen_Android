@@ -14,8 +14,19 @@ import com.smart.pen.core.symbol.SceneType;
  * Description
  */
 public class PointObject {
+	/**标准纵向A4 宽度**/
+	public static final int VALUE_A4_WIDTH = 10000;
+	/**标准纵向A4 高度**/
+	public static final int VALUE_A4_HEIGHT = 14500;
+
+	/**标准纵向A5 宽度**/
+	public static final int VALUE_A5_WIDTH = 7000;
+	/**标准纵向A5 高度**/
+	public static final int VALUE_A5_HEIGHT = 9500;
+	
 	private short width;
 	private short height;
+	private short topGap;
 	
 	private SceneType sceneType = SceneType.NOTHING;
 	
@@ -69,6 +80,14 @@ public class PointObject {
 	}
 	
 	/**
+	 * 设置顶部间隔
+	 * @param value
+	 */
+	public void setTopGap(short value){
+		this.topGap = value;
+	}
+	
+	/**
 	 * 设置场景类型
 	 * @param type
 	 */
@@ -103,6 +122,16 @@ public class PointObject {
 		this.sceneType = SceneType.CUSTOM;
 		this.width = width;
 		this.height = height;
+		
+		setOffset(offsetX,offsetY);
+	}
+	
+	/**
+	 * 设置偏移坐标
+	 * @param offsetX
+	 * @param offsetY
+	 */
+	public void setOffset(short offsetX,short offsetY){
 		this.offsetX = offsetX;
 		this.offsetY = offsetY;
 	}
@@ -120,13 +149,13 @@ public class PointObject {
 	public short getWidth(SceneType type){
 		switch(type){
 		case A4:
-			return 10000;
+			return VALUE_A4_WIDTH;
 		case A4_horizontal:
-			return 14500;
+			return VALUE_A4_HEIGHT;
 		case A5:
-			return 7000;
+			return VALUE_A5_WIDTH;
 		case A5_horizontal:
-			return 9500;
+			return VALUE_A5_HEIGHT;
 		default:
 			return width;
 		}
@@ -138,13 +167,13 @@ public class PointObject {
 	public short getHeight(SceneType type){
 		switch(sceneType){
 		case A4:
-			return 14500;
+			return VALUE_A4_HEIGHT;
 		case A4_horizontal:
-			return 10000;
+			return VALUE_A4_WIDTH;
 		case A5:
-			return 9500;
+			return VALUE_A5_HEIGHT;
 		case A5_horizontal:
-			return 7000;
+			return VALUE_A5_WIDTH;
 		default:
 			return height;
 		}
@@ -192,8 +221,9 @@ public class PointObject {
 	 * @return
 	 */
 	public short getSceneY(int showHeight){
+		int y = originalY - offsetY + topGap;
 		//计算偏移量
-		int value = originalY - offsetY > getHeight()?getHeight():originalY - offsetY;
+		int value = y > getHeight()?getHeight():y;
 		
 		if(showHeight > 0){
 			//按显示宽度等比缩放
