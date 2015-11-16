@@ -55,6 +55,13 @@ public class Listeners {
 		void change(PointObject point);
 	}
 	
+	/**手势监听**/
+	public interface OnPenGestureListener{
+		
+		/**长按**/
+		void longClick(PointObject point);
+	}
+	
 	/**
 	 * 坐标定点监听
 	 *

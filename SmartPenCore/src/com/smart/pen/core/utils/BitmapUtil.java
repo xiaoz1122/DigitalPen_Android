@@ -5,6 +5,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 
+import android.content.ContentResolver;
 import android.content.Context;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
@@ -42,44 +43,61 @@ public class BitmapUtil {
 	/**
 	 * 安全的获取并压缩一张图片
 	 * 
-	 * @param uri
+	 * @param photoPath
 	 * @param width
 	 * @param height
 	 * @return
 	 * @throws FileNotFoundException
 	 */
-	public static Bitmap safeDecodeStream(Context context,Uri uri, int width, int height)
-			throws FileNotFoundException {
+	public static Bitmap safeDecodeStream(Context context, Uri uri, int width, int height){
+		Bitmap result = null;
 		int scale = 1;
-		BitmapFactory.Options options = new BitmapFactory.Options();
-		android.content.ContentResolver resolver = context.getContentResolver();
-
-		if (width > 0 || height > 0) {
-			// Decode image size without loading all data into memory
-			options.inJustDecodeBounds = true;
-			BitmapFactory.decodeStream(
-					new BufferedInputStream(resolver.openInputStream(uri),
-							16 * 1024), null, options);
-
-			int w = options.outWidth;
-			int h = options.outHeight;
-			while (true) {
-				if ((width > 0 && w / 2 < width)
-						|| (height > 0 && h / 2 < height)) {
-					break;
+		
+		ContentResolver resolver = context.getContentResolver();
+		try{
+			BufferedInputStream readBuffer = null;
+			BitmapFactory.Options options = new BitmapFactory.Options();
+			if (width > 0 || height > 0) {
+				// Decode image size without loading all data into memory
+				options.inJustDecodeBounds = true;
+				
+				readBuffer = new BufferedInputStream(resolver.openInputStream(uri), 16 * 1024);
+				//不需要得到Bitmap对象的前提下获得图像宽高
+				BitmapFactory.decodeStream(readBuffer, null, options);
+				readBuffer.close();
+				
+				if (options.mCancel || options.outWidth == -1 || options.outHeight == -1) {
+					return null;
 				}
-				w /= 2;
-				h /= 2;
-				scale *= 2;
+				int w = options.outWidth;
+				int h = options.outHeight;
+				while (true) {
+					if ((width > 0 && w / 2 < width) || (height > 0 && h / 2 < height)) {
+						break;
+					}
+					
+					w /= 2;
+					h /= 2;
+					scale *= 2;
+				}
 			}
-		}
+			options.inSampleSize = scale;
+			options.inJustDecodeBounds = false;
+			options.inDither = false;
+			options.inPreferredConfig = Bitmap.Config.ARGB_8888;
 
-		// Decode with inSampleSize option
-		options.inJustDecodeBounds = false;
-		options.inSampleSize = scale;
-		return BitmapFactory.decodeStream(
-				new BufferedInputStream(resolver.openInputStream(uri),
-						16 * 1024), null, options);
+			readBuffer = new BufferedInputStream(resolver.openInputStream(uri), 16 * 1024);
+			result = BitmapFactory.decodeStream(readBuffer,null, options);
+			readBuffer.close();
+			
+		}catch(IllegalArgumentException e){
+			e.printStackTrace();
+		}catch(IOException e){
+			e.printStackTrace();
+		}catch(Exception e){
+			e.printStackTrace();
+		}
+		return result;
 	}
 	
 	/**

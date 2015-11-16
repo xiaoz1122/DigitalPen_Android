@@ -18,7 +18,6 @@ public class SystemUtil {
         final float scale = context.getResources().getDisplayMetrics().density;   
         return (int)(dipValue * scale + 0.5f);   
 	}
-	
 
 	/**检查是否支持摄像头**/
     public static boolean checkCameraHardware(Context context) {

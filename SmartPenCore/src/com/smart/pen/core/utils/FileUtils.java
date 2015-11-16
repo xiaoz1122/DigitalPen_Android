@@ -109,16 +109,28 @@ public class FileUtils {
 		boolean result = false;
 		if(bitmap != null) {
             byte[] imageData = BitmapUtil.bitmap2Bytes(bitmap,100);
-            File saveFile = new File(savePath);
-            try {
-            	FileOutputStream fos = new FileOutputStream(saveFile);
-            	fos.write(imageData);
-            	fos.close();
-            	
-            	result = true;
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
+            result = saveByteData(imageData,savePath);
+        }
+		return result;
+	}
+	
+	/**
+	 * 保存byte[]文件
+	 * @param data
+	 * @param savePath
+	 * @return
+	 */
+	public static boolean saveByteData(byte[] data,String savePath){
+		boolean result = false;
+		File saveFile = new File(savePath);
+        try {
+        	FileOutputStream fos = new FileOutputStream(saveFile);
+        	fos.write(data);
+        	fos.close();
+        	
+        	result = true;
+        } catch (IOException e) {
+            e.printStackTrace();
         }
 		return result;
 	}

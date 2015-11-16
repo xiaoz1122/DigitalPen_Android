@@ -13,7 +13,10 @@ import android.graphics.Paint;
 import android.graphics.PorterDuff.Mode;
 import android.graphics.PorterDuffXfermode;
 import android.util.AttributeSet;
+import android.util.Log;
 import android.view.MotionEvent;
+import android.view.View;
+import android.view.View.OnLongClickListener;
 import android.widget.FrameLayout;
 
 /**
@@ -23,7 +26,8 @@ import android.widget.FrameLayout;
  *
  * Description
  */
-public class MultipleCanvasView extends FrameLayout{
+public class MultipleCanvasView extends FrameLayout implements OnLongClickListener{
+	public static final String TAG = MultipleCanvasView.class.getSimpleName();
 
 	private int mWidth;//画布宽高
     private int mHeight;
@@ -72,6 +76,13 @@ public class MultipleCanvasView extends FrameLayout{
 		}
         initCanvasInfo();
     }
+
+	@Override
+	public boolean onLongClick(View v) {
+		Log.v(TAG, "onLongClick tag:"+v.getTag());
+		
+		return false;
+	}
     
     private void initCanvasInfo(){
     	
@@ -225,8 +236,8 @@ public class MultipleCanvasView extends FrameLayout{
      */
     public void cleanAllShape(){
     	ShapeView view;
-    	for(int i = 0;i < mShapeList.size();i++){
-    		view = mShapeList.get(i);
+    	while(mShapeList.size() > 0){
+    		view = mShapeList.remove(0);
     		this.removeView(view);
     		view.release();
     	}
@@ -237,8 +248,8 @@ public class MultipleCanvasView extends FrameLayout{
      */
     public void cleanAllPhoto(){
     	PhotoView view;
-    	for(int i = 0;i < mPhotoList.size();i++){
-    		view = mPhotoList.get(i);
+    	while(mPhotoList.size() > 0){
+    		view = mPhotoList.remove(0);
     		this.removeView(view);
     		view.release();
     	}
@@ -310,57 +321,6 @@ public class MultipleCanvasView extends FrameLayout{
         	mPenDrawView.setPenModel(mPenModel);
         }
         mPenDrawView.drawLine(x, y, isRoute, paint);
-        
-        //是否准备写 笔尖是否接触
-//        if(isRoute){
-//        	
-//            //是否是move
-//            if(mLastX != 0 && mLastY != 0){
-//            	double speed = Math.sqrt(Math.pow(mLastX-x,2) + Math.pow(mLastY-y,2));
-//            	if(mPenModel != PenModel.None && !mIsRubber){
-//            		//根据速度计算笔迹粗/细
-//                	int fix = (int)(speed / 10);
-//                	int weight = mPenWeight - fix;
-//                	
-//                	//如果距离小于计算后的weight，那么不处理
-//                	if(speed <= weight)return;
-//                	if(weight < 1)weight = 1;
-//                	paint.setStrokeWidth(weight);
-//            	}else if(speed <= mPenWeight){
-//            		//如果距离小于weight，那么不处理
-//            		return;
-//            	}
-//            	
-//            	if(mPenModel == PenModel.Pen){
-//            		mCanvas.drawLine(mLastX, mLastY, x, y, paint);
-//            	}else{
-//            		mPath.quadTo(mLastX, mLastY, x, y);
-//	                mCanvas.drawPath(mPath, paint);
-//            	}
-//                mLastX = x;
-//                mLastY = y;
-//            }else{
-//            	paint.setStrokeWidth(mPenWeight);
-//
-//            	if(mPenModel == PenModel.Pen){
-//                    mCanvas.drawPoint(x, y, paint);
-//            	}else{
-//	                mCanvas.drawPath(mPath, paint);
-//	                mPath.reset();
-//	                mPath.moveTo(x,y);
-//            	}
-//                mLastX = x;
-//                mLastY = y;
-//            }
-//        }else{
-//            mPath.reset();
-//
-//            //没在写
-//            mLastX = 0;
-//            mLastY = 0;
-//        }
-//
-//    	mDrawView.invalidate();
     }
     
     /**
@@ -378,7 +338,9 @@ public class MultipleCanvasView extends FrameLayout{
 				ShapeView view = new ShapeView(getContext(),mInsertShape);
 				view.setIsFill(mInsertShapeIsFill);
 				view.setPaint(mPenPaint);
-				this.addView(view,mPhotoList.size());
+
+		    	int index = getInsertIndex(mPhotoList.size() + mShapeList.size());
+				this.addView(view,index);
 				this.mShapeList.add(view);
 				
 				mInsertShapeTmp = view;
@@ -395,9 +357,23 @@ public class MultipleCanvasView extends FrameLayout{
     public void insertPhoto(Bitmap bitmap){
     	mIsEditPhoto = true;
     	PhotoView view = new PhotoView(getContext(),bitmap);
-		this.addView(view,0);
+    	
+    	int index = getInsertIndex(mPhotoList.size());
+		this.addView(view,index);
 		mPenDrawView.bringToFront();
 		this.mPhotoList.add(view);
+    }
+    
+    private int getInsertIndex(int count){
+    	int index = count;
+		if(index >= this.getChildCount()){
+			if(this.getChildCount() > 1){
+				index = this.getChildCount() - 2;
+			}else{
+				index = 0;
+			}
+		}
+		return index;
     }
 
     /**

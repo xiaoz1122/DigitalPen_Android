@@ -109,6 +109,11 @@ public class SmartPenService extends PenService{
 	}
 
 	@Override
+	public short getReceiverGapHeight() {
+		return 880;
+	}
+
+	@Override
 	public DeviceObject getConnectDevice() {
 		if(checkDeviceConnect() == ConnectState.CONNECTED){
 			return mBufferDevices.get(mBluetoothGatt.getDevice().getAddress());
