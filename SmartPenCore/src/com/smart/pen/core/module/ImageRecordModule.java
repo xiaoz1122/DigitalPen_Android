@@ -126,8 +126,13 @@ public class ImageRecordModule {
         }
         
         if(mTmpBitmap != null){
-        	if(!mTmpBitmap.isRecycled())mTmpBitmap.recycle();
+        	Bitmap bmp = mTmpBitmap;
         	mTmpBitmap = null;
+        	
+        	if(bmp != null){
+        		if(!bmp.isRecycled())bmp.recycle();
+        		bmp = null;
+        	}
         }
     }
     
@@ -175,23 +180,47 @@ public class ImageRecordModule {
     public boolean getIsPause(){
         return isPause;
     }
+    
 
-    /**设置输入图片尺寸**/
-    public void setInputImageSize(int width,int height){
-    	this.mInputWidth = width;
-    	this.mInputHeight = height;
+    /**
+     * 设置录制尺寸信息，输入图片尺寸与输出视频尺寸相同
+     * @param inWidth 输入宽
+     * @param inHeight 输入高
+     * @return
+     */
+    public boolean setRecordSize(int inImageWidth,int inImageHeight){
+    	return setRecordSize(inImageWidth,inImageHeight,inImageWidth,inImageHeight);
+    }
+
+    /**
+     * 设置录制尺寸信息
+     * @param inWidth			输入图片宽
+     * @param inHeight			输入图片高
+     * @param outVideoWidth		输出视频宽
+     * @param outVideoHeight	输出视频高
+     * @return
+     */
+    public boolean setRecordSize(int inImageWidth,int inImageHeight,int outVideoWidth,int outVideoHeight){
+    	boolean result = false;
     	
-    	setOutputVideoSize(width,height);
+    	this.mInputWidth = inImageWidth;
+    	this.mInputHeight = inImageHeight;
+
+        this.mVideoWidth = outVideoWidth;
+        this.mVideoHeight = outVideoHeight;
+        
         releaseImageRes();
         
-        mImageBuffer = ByteBuffer.allocateDirect(mInputWidth * mInputHeight * 4);
-        mTmpBitmap = Bitmap.createBitmap(mInputWidth, mInputHeight, Bitmap.Config.ARGB_8888);
-    }
-    
-    /**设置输出视频尺寸,需要先设置输入尺寸setInputImageSize**/
-    public void setOutputVideoSize(int width,int height){
-        this.mVideoWidth = width;
-        this.mVideoHeight = height;
+        try{
+	        mImageBuffer = ByteBuffer.allocateDirect(mInputWidth * mInputHeight * 4);
+	        mTmpBitmap = Bitmap.createBitmap(mInputWidth, mInputHeight, Bitmap.Config.ARGB_8888);
+	        result = true;
+        }catch(Exception e){
+        	e.printStackTrace();
+        	result = false;
+        }
+        
+        return result;
     }
 
     /**
@@ -235,7 +264,9 @@ public class ImageRecordModule {
     }
 
     /**
-     * 结束录制
+     * 结束录制<br />
+     * 结束后并不表示录制完全结束，需要等待ImageRecordInterface.videoCodeState返回的progress=100后才表示完全压缩完成。<br />
+     * 如果录制完成后需等待压缩时间很长，那么可能导致音视频时间不同步，需降低RecordLevel参数
      */
     public void endRecord(){
         isRecording = false;
@@ -306,11 +337,11 @@ public class ImageRecordModule {
 
         mFFMergePictureUtils.end();
         mTimerNum = 0;
-        mImageBuffer.clear();
         mAudioBuffers.clear();
         mImageBuffers.clear();
         mGetImageInterface.videoCodeState(100);
 
+        releaseImageRes();
     }
 
     private class WriteBufferRunnable implements Runnable{
@@ -463,9 +494,11 @@ public class ImageRecordModule {
                 //获取音频数据
                 int len = mAudioRecord.read(readData, 0, BUFFER_LENGTH);
                 //Log.v(TAG, "GetAudioTask len:"+len);
-                data = new byte[len];
-                System.arraycopy(readData, 0, data, 0, len);
-                mAudioBuffers.add(data);
+                if(len > 0){
+	                data = new byte[len];
+	                System.arraycopy(readData, 0, data, 0, len);
+	                mAudioBuffers.add(data);
+                }
             }
             //停止录音
             mAudioRecord.stop();

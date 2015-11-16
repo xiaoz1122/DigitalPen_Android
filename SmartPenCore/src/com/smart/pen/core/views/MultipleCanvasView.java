@@ -236,8 +236,8 @@ public class MultipleCanvasView extends FrameLayout implements OnLongClickListen
      */
     public void cleanAllShape(){
     	ShapeView view;
-    	for(int i = 0;i < mShapeList.size();i++){
-    		view = mShapeList.get(i);
+    	while(mShapeList.size() > 0){
+    		view = mShapeList.remove(0);
     		this.removeView(view);
     		view.release();
     	}
@@ -248,8 +248,8 @@ public class MultipleCanvasView extends FrameLayout implements OnLongClickListen
      */
     public void cleanAllPhoto(){
     	PhotoView view;
-    	for(int i = 0;i < mPhotoList.size();i++){
-    		view = mPhotoList.get(i);
+    	while(mPhotoList.size() > 0){
+    		view = mPhotoList.remove(0);
     		this.removeView(view);
     		view.release();
     	}
@@ -338,7 +338,9 @@ public class MultipleCanvasView extends FrameLayout implements OnLongClickListen
 				ShapeView view = new ShapeView(getContext(),mInsertShape);
 				view.setIsFill(mInsertShapeIsFill);
 				view.setPaint(mPenPaint);
-				this.addView(view,mPhotoList.size() + mShapeList.size());
+
+		    	int index = getInsertIndex(mPhotoList.size() + mShapeList.size());
+				this.addView(view,index);
 				this.mShapeList.add(view);
 				
 				mInsertShapeTmp = view;
@@ -355,9 +357,23 @@ public class MultipleCanvasView extends FrameLayout implements OnLongClickListen
     public void insertPhoto(Bitmap bitmap){
     	mIsEditPhoto = true;
     	PhotoView view = new PhotoView(getContext(),bitmap);
-		this.addView(view,mPhotoList.size());
+    	
+    	int index = getInsertIndex(mPhotoList.size());
+		this.addView(view,index);
 		mPenDrawView.bringToFront();
 		this.mPhotoList.add(view);
+    }
+    
+    private int getInsertIndex(int count){
+    	int index = count;
+		if(index >= this.getChildCount()){
+			if(this.getChildCount() > 1){
+				index = this.getChildCount() - 2;
+			}else{
+				index = 0;
+			}
+		}
+		return index;
     }
 
     /**

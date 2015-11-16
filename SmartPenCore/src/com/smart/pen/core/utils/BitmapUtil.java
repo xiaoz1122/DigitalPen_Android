@@ -61,7 +61,7 @@ public class BitmapUtil {
 				// Decode image size without loading all data into memory
 				options.inJustDecodeBounds = true;
 				
-				readBuffer = new BufferedInputStream(resolver.openInputStream(uri));
+				readBuffer = new BufferedInputStream(resolver.openInputStream(uri), 16 * 1024);
 				//不需要得到Bitmap对象的前提下获得图像宽高
 				BitmapFactory.decodeStream(readBuffer, null, options);
 				readBuffer.close();

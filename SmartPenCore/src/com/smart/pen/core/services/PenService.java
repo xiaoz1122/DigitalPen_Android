@@ -110,6 +110,13 @@ public abstract class PenService extends Service{
 	 * 停止扫描
 	 */
 	abstract public void stopScanDevice();
+	
+	@Override
+	public void onCreate() {
+		super.onCreate();
+        Log.v(TAG, "onCreate");
+        
+	}
 
 	@Override
 	public IBinder onBind(Intent intent) {
@@ -387,12 +394,17 @@ public abstract class PenService extends Service{
 	 */
 	protected boolean isFixedPoint(){
 		int result = 0;
-		if(mSamplePointX.size() >= CHECK_FIXED_SAMPLE_COUNT && mSamplePointY.size() >= CHECK_FIXED_SAMPLE_COUNT){
-			int gapX = (mRouteSumX / mSamplePointX.size()) - mSamplePointX.get(0);
-			int gapY = (mRouteSumY / mSamplePointY.size()) - mSamplePointY.get(0);
+		if(mSamplePointX != null && mSamplePointY != null){
+			int sizeX = mSamplePointX.size();
+			int sizeY = mSamplePointY.size();
 			
-			if(Math.abs(gapX) < 50)result++;
-			if(Math.abs(gapY) < 50)result++;
+			if(sizeX >= CHECK_FIXED_SAMPLE_COUNT && sizeY >= CHECK_FIXED_SAMPLE_COUNT){
+				int gapX = (mRouteSumX / sizeX) - mSamplePointX.get(0);
+				int gapY = (mRouteSumY / sizeY) - mSamplePointY.get(0);
+				
+				if(Math.abs(gapX) < 50)result++;
+				if(Math.abs(gapY) < 50)result++;
+			}
 		}
 		return result == 2;
 	}
