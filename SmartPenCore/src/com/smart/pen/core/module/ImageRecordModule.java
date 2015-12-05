@@ -189,7 +189,7 @@ public class ImageRecordModule {
      * @return
      */
     public boolean setRecordSize(int inImageWidth,int inImageHeight){
-    	return setRecordSize(inImageWidth,inImageHeight,inImageWidth,inImageHeight);
+    	return setRecordSize(inImageWidth,inImageHeight,0,0);
     }
 
     /**
@@ -206,8 +206,8 @@ public class ImageRecordModule {
     	this.mInputWidth = inImageWidth;
     	this.mInputHeight = inImageHeight;
 
-        this.mVideoWidth = outVideoWidth;
-        this.mVideoHeight = outVideoHeight;
+        this.mVideoWidth = outVideoWidth > 0?outVideoWidth:inImageWidth;
+        this.mVideoHeight = outVideoHeight > 0?outVideoHeight:inImageHeight;
         
         releaseImageRes();
         

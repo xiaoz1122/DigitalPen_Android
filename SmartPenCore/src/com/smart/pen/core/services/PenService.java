@@ -377,7 +377,8 @@ public abstract class PenService extends Service{
 	 * @param y
 	 */
 	protected void addSamplePoint(PointObject point){
-		if(point.isRoute){
+		//当笔尖和笔上按钮被按下，开始收集坐标样本
+		if(point.isRoute && point.isSw1){
 			mRouteSumX += point.originalX;
 			mRouteSumY += point.originalY;
 			

@@ -706,19 +706,18 @@ public class SmartPenService extends PenService{
 		public String prefixName = null;
 		@Override
 		public void onLeScan(BluetoothDevice device, int rssi, byte[] scanRecord) {
-			//23:680T 广播包
-			//26:PenXXXXXXXXXXXX 广播包
-			//27:DigitalPen-xxxxx 广播包
-			int[] record = {23,26,27};
 			int startIndex = 0;
 			
 			//开始判断是否是数码笔广播包
 			boolean isPen = false;
-			for(int i = 0;i < record.length;i++){
-				startIndex = record[i];
-				if(scanRecord[startIndex] == 0x44 && scanRecord[startIndex + 1] == 0x50){
-					isPen = true;
-					break;
+			//从广播包第20位开始检查
+			if(scanRecord.length > 20){
+				for(int i = 20;i < scanRecord.length - 1;i++){
+					if(scanRecord[i] == 0x44 && scanRecord[i + 1] == 0x50){
+						startIndex = i;
+						isPen = true;
+						break;
+					}
 				}
 			}
 			

@@ -92,6 +92,7 @@ public class MultipleCanvasView extends FrameLayout implements OnLongClickListen
             this.mHeight = mCanvasManageInterface.getPenCanvasHeight();
             this.mPenWeight = mCanvasManageInterface.getPenWeight();
             this.mPenColor = mCanvasManageInterface.getPenColor();
+            this.mBgColor = mCanvasManageInterface.getBgColor();
             this.mIsRubber = mCanvasManageInterface.getIsRubber();
             initObjects();
     	}
@@ -412,6 +413,12 @@ public class MultipleCanvasView extends FrameLayout implements OnLongClickListen
          * @return
          */
         int getPenColor();
+        
+        /**
+         * 获取背景颜色
+         * @return
+         */
+        int getBgColor();
 
         /**
          * 获取画布宽度
